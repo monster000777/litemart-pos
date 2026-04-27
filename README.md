@@ -1,75 +1,71 @@
-# Nuxt Minimal Starter
+# LiteMart POS
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+轻量级社区零售/核销工作台（Nuxt 3 + Prisma + SQLite + Tailwind）。
 
-## Setup
+## 技术栈
 
-Make sure to install dependencies:
+- Nuxt 3（Vue 3 + Nitro）
+- TypeScript
+- Prisma + SQLite
+- Tailwind CSS
+- Lucide Vue / Auto Animate
+
+## 本地启动
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
+npm run prisma:migrate
+npm run prisma:generate
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
-
-Build the application for production:
+## 常用命令
 
 ```bash
-# npm
+npm run dev
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
+npm run preview
+npm run prisma:migrate
+npm run prisma:generate
+npx prisma db seed
 ```
 
-Locally preview production build:
+## 环境变量
+
+创建 `.env`（可参考 `.env.example`）：
 
 ```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
+NUXT_AUTH_SECRET=
+NUXT_ADMIN_PIN=
+NUXT_MINIMAX_API_KEY=
+NUXT_MINIMAX_API_URL=
+NUXT_MINIMAX_MODEL=
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+说明：
+- `NUXT_MINIMAX_API_KEY`：可选；配置后会调用 MiniMax 生成简报，不配置时使用本地兜底简报
+- `NUXT_MINIMAX_API_URL`：可选，默认走 MiniMax 聊天接口
+- `NUXT_MINIMAX_MODEL`：可选，默认 `abab6.5-chat`
+- `NUXT_AUTH_SECRET`：PIN 登录签名密钥（建议 32 位以上随机字符串）
+- `NUXT_ADMIN_PIN`：可选；配置后可作为初始化 PIN（6 位数字），未配置时首次访问登录页可直接注册 PIN
+
+## 目录结构
+
+```text
+app/
+  layouts/          # SaaS 全局布局
+  pages/            # Checkout / Inventory / Insights 页面
+  components/ui/    # UI 组件（含 Table）
+  stores/           # Pinia 状态管理（含购物清单持久化）
+  types/            # 前端 DTO 类型定义
+server/
+  api/              # 业务 API（auth/products/orders/insights/ai-summary）
+  lib/              # 基础设施（Prisma 单例）
+  middleware/       # 服务端鉴权中间件
+  services/         # 后端领域服务（订单、商品）
+prisma/
+  schema.prisma     # 数据模型
+  migrations/       # 迁移记录
+shared/
+  constants/        # 跨端常量
+```
