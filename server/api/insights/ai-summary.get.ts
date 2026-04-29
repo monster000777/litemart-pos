@@ -228,12 +228,10 @@ ${JSON.stringify(payload)}
                 }
               ]
             : {
-              bot_name: 'LiteMart POS',
-              content: SYSTEM_PROMPT
-            },
-          messages: [
-            { sender_type: 'USER', sender_name: 'user', text: userPrompt }
-          ],
+                bot_name: 'LiteMart POS',
+                content: SYSTEM_PROMPT
+              },
+          messages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
           temperature: 0.3,
           max_tokens: 500
         }
@@ -268,7 +266,8 @@ ${JSON.stringify(payload)}
               const fallbackShapeResponse = await callLegacy(url, false)
               const fallbackShapeSummary = parseSummary(fallbackShapeResponse)
               if (
-                (!fallbackShapeResponse.base_resp?.status_code || fallbackShapeResponse.base_resp.status_code === 0) &&
+                (!fallbackShapeResponse.base_resp?.status_code ||
+                  fallbackShapeResponse.base_resp.status_code === 0) &&
                 fallbackShapeSummary
               ) {
                 summary = fallbackShapeSummary
@@ -286,7 +285,10 @@ ${JSON.stringify(payload)}
         try {
           const response = await callOpenAICompatible(url)
           const remoteSummary = parseSummary(response)
-          if ((!response.base_resp?.status_code || response.base_resp.status_code === 0) && remoteSummary) {
+          if (
+            (!response.base_resp?.status_code || response.base_resp.status_code === 0) &&
+            remoteSummary
+          ) {
             summary = remoteSummary
             break
           }

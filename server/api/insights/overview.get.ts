@@ -6,30 +6,31 @@ export default defineEventHandler(async () => {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
 
-  const [orderCount, refundedCount, productCount, todayOrderCount, todayTotals, products] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.count({ where: { status: ORDER_STATUS.REFUNDED } }),
-    prisma.product.count(),
-    prisma.order.count({
-      where: {
-        status: ORDER_STATUS.COMPLETED,
-        createdAt: { gte: startOfDay, lt: nextDay }
-      }
-    }),
-    prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: {
-        status: ORDER_STATUS.COMPLETED,
-        createdAt: { gte: startOfDay, lt: nextDay }
-      }
-    }),
-    prisma.product.findMany({
-      select: {
-        stock: true,
-        minStock: true
-      }
-    })
-  ])
+  const [orderCount, refundedCount, productCount, todayOrderCount, todayTotals, products] =
+    await Promise.all([
+      prisma.order.count(),
+      prisma.order.count({ where: { status: ORDER_STATUS.REFUNDED } }),
+      prisma.product.count(),
+      prisma.order.count({
+        where: {
+          status: ORDER_STATUS.COMPLETED,
+          createdAt: { gte: startOfDay, lt: nextDay }
+        }
+      }),
+      prisma.order.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          status: ORDER_STATUS.COMPLETED,
+          createdAt: { gte: startOfDay, lt: nextDay }
+        }
+      }),
+      prisma.product.findMany({
+        select: {
+          stock: true,
+          minStock: true
+        }
+      })
+    ])
 
   const totals = await prisma.order.aggregate({
     _sum: {

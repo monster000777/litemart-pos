@@ -115,7 +115,11 @@ const actionOptions = Object.entries(ACTION_LABELS)
 
     <!-- 骨架 -->
     <div v-if="pending" class="space-y-2">
-      <div v-for="i in 8" :key="i" class="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-3">
+      <div
+        v-for="i in 8"
+        :key="i"
+        class="flex items-center gap-4 rounded-xl border border-slate-100 bg-white p-3"
+      >
         <Skeleton class="h-5 w-16 rounded-full" />
         <Skeleton class="h-4 w-48" />
         <Skeleton class="ml-auto h-3 w-28" />

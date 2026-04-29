@@ -1,4 +1,21 @@
 import { prisma } from '~~/server/lib/prisma'
+import { ORDER_STATUS } from '~~/shared/constants/order'
+
+const parseDateInput = (input: string, fieldLabel: string) => {
+  const value = input.trim()
+  if (!value) {
+    return null
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Bad Request',
+      message: `${fieldLabel} 日期格式错误`
+    })
+  }
+  return date
+}
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -13,26 +30,39 @@ export default defineEventHandler(async (event) => {
   const where: Record<string, unknown> = {}
 
   if (status) {
+    if (status !== ORDER_STATUS.COMPLETED && status !== ORDER_STATUS.REFUNDED) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '订单状态参数不合法'
+      })
+    }
     where.status = status
   }
 
   if (search) {
-    where.OR = [
-      { orderNo: { contains: search } },
-      { customerTail: { contains: search } }
-    ]
+    where.OR = [{ orderNo: { contains: search } }, { customerTail: { contains: search } }]
   }
 
   if (dateFrom || dateTo) {
     const createdAt: Record<string, Date> = {}
-    if (dateFrom) {
-      createdAt.gte = new Date(dateFrom)
+    const parsedFrom = parseDateInput(dateFrom, '开始')
+    const parsedTo = parseDateInput(dateTo, '结束')
+
+    if (parsedFrom) {
+      createdAt.gte = parsedFrom
     }
-    if (dateTo) {
-      // dateTo 设为当天结束
-      const end = new Date(dateTo)
-      end.setHours(23, 59, 59, 999)
-      createdAt.lte = end
+    if (parsedTo) {
+      parsedTo.setHours(23, 59, 59, 999)
+      createdAt.lte = parsedTo
+    }
+
+    if (createdAt.gte && createdAt.lte && createdAt.gte > createdAt.lte) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '开始日期不能晚于结束日期'
+      })
     }
     where.createdAt = createdAt
   }

@@ -23,26 +23,40 @@ let clockTimer: ReturnType<typeof setInterval> | null = null
 let dataTimer: ReturnType<typeof setInterval> | null = null
 
 const { formatPrice, formatDate, formatTime } = useFormat()
+const { getApiErrorMessage } = useApiError()
 
-const { data: overview, pending: overviewPending, refresh: refreshOverview } = await useAsyncData(
-  'dashboard-overview',
-  () => $fetch<InsightsOverviewDto>('/api/insights/overview')
+const {
+  data: overview,
+  pending: overviewPending,
+  refresh: refreshOverview
+} = await useAsyncData('dashboard-overview', () =>
+  $fetch<InsightsOverviewDto>('/api/insights/overview')
 )
-const { data: stats, pending: statsPending, refresh: refreshStats } = await useAsyncData(
-  'dashboard-stats',
-  () => $fetch<InsightsStatsDto>('/api/insights/stats')
+const {
+  data: stats,
+  pending: statsPending,
+  error: statsError,
+  refresh: refreshStats
+} = await useAsyncData('dashboard-stats', () => $fetch<InsightsStatsDto>('/api/insights/stats'))
+const {
+  data: orderData,
+  pending: ordersPending,
+  refresh: refreshOrders
+} = await useAsyncData('dashboard-orders', () =>
+  $fetch<OrderListResponse>('/api/orders', { params: { pageSize: 12 } })
 )
-const { data: orderData, pending: ordersPending, refresh: refreshOrders } = await useAsyncData(
-  'dashboard-orders',
-  () => $fetch<OrderListResponse>('/api/orders', { params: { pageSize: 12 } })
-)
-const { data: productData, pending: productsPending, refresh: refreshProducts } = await useAsyncData(
-  'dashboard-products',
-  () => $fetch<ProductDto[]>('/api/products')
-)
+const {
+  data: productData,
+  pending: productsPending,
+  refresh: refreshProducts
+} = await useAsyncData('dashboard-products', () => $fetch<ProductDto[]>('/api/products'))
 
 const trend = computed(() => stats.value?.trend ?? [])
 const topProducts = computed(() => stats.value?.topProducts ?? [])
+const hasTrendData = computed(() => trend.value.some((item) => item.amount > 0))
+const statsErrorMessage = computed(() =>
+  statsError.value ? getApiErrorMessage(statsError.value, '经营统计加载失败，请稍后重试') : ''
+)
 const recentOrders = computed(() => orderData.value?.orders ?? [])
 const warningProducts = computed(() =>
   (productData.value ?? [])
@@ -73,7 +87,9 @@ const categoryDistribution = computed(() => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 6)
 })
-const maxCategoryCount = computed(() => Math.max(...categoryDistribution.value.map((item) => item.count), 1))
+const maxCategoryCount = computed(() =>
+  Math.max(...categoryDistribution.value.map((item) => item.count), 1)
+)
 
 const hourBuckets = computed(() => {
   const raw = Array.from({ length: 8 }, (_, index) => ({
@@ -98,7 +114,8 @@ const trendPoints = computed(() => {
   const innerHeight = chartHeight - chartPadding.top - chartPadding.bottom
   const total = trend.value.length || 1
   return trend.value.map((item, index) => {
-    const x = chartPadding.left + (total === 1 ? innerWidth / 2 : (index * innerWidth) / (total - 1))
+    const x =
+      chartPadding.left + (total === 1 ? innerWidth / 2 : (index * innerWidth) / (total - 1))
     const y = chartPadding.top + innerHeight - (item.amount / maxTrendAmount.value) * innerHeight
     return { ...item, x, y }
   })
@@ -124,40 +141,43 @@ const trendAreaPath = computed(() => {
   return `${trendLinePath.value} L ${last.x.toFixed(2)} ${baseline} L ${first.x.toFixed(2)} ${baseline} Z`
 })
 
-const summaryCards = computed(() => [
-  {
-    key: 'todayAmount',
-    label: '今日销售额',
-    value: formatPrice(overview.value?.todayAmount ?? 0),
-    sub: `累计营收 ${formatPrice(overview.value?.grossAmount ?? 0)}`,
-    icon: DollarSign,
-    tone: 'indigo'
-  },
-  {
-    key: 'todayOrders',
-    label: '今日核销单',
-    value: String(overview.value?.todayOrderCount ?? 0),
-    sub: `历史总单 ${overview.value?.orderCount ?? 0}`,
-    icon: ShoppingBag,
-    tone: 'emerald'
-  },
-  {
-    key: 'skuCount',
-    label: '在售 SKU',
-    value: String(overview.value?.productCount ?? 0),
-    sub: `预警 ${overview.value?.warningCount ?? 0}`,
-    icon: Boxes,
-    tone: 'sky'
-  },
-  {
-    key: 'refundCount',
-    label: '退款单数',
-    value: String(overview.value?.refundedCount ?? 0),
-    sub: '近期开单波动稳定',
-    icon: Activity,
-    tone: 'amber'
-  }
-] as const)
+const summaryCards = computed(
+  () =>
+    [
+      {
+        key: 'todayAmount',
+        label: '今日销售额',
+        value: formatPrice(overview.value?.todayAmount ?? 0),
+        sub: `累计营收 ${formatPrice(overview.value?.grossAmount ?? 0)}`,
+        icon: DollarSign,
+        tone: 'indigo'
+      },
+      {
+        key: 'todayOrders',
+        label: '今日核销单',
+        value: String(overview.value?.todayOrderCount ?? 0),
+        sub: `历史总单 ${overview.value?.orderCount ?? 0}`,
+        icon: ShoppingBag,
+        tone: 'emerald'
+      },
+      {
+        key: 'skuCount',
+        label: '在售 SKU',
+        value: String(overview.value?.productCount ?? 0),
+        sub: `预警 ${overview.value?.warningCount ?? 0}`,
+        icon: Boxes,
+        tone: 'sky'
+      },
+      {
+        key: 'refundCount',
+        label: '退款单数',
+        value: String(overview.value?.refundedCount ?? 0),
+        sub: '近期开单波动稳定',
+        icon: Activity,
+        tone: 'amber'
+      }
+    ] as const
+)
 
 const toneClassMap = {
   indigo: { icon: 'text-indigo-600 bg-indigo-50 border-indigo-100', value: 'text-indigo-700' },
@@ -198,17 +218,25 @@ onUnmounted(() => {
     </div>
 
     <div class="relative mx-auto w-full max-w-[1900px] p-6 md:p-8 xl:p-10">
-      <header class="mb-6 rounded-3xl border border-slate-100 bg-white/90 px-6 py-5 backdrop-blur-sm md:px-8">
+      <header
+        class="mb-6 rounded-3xl border border-slate-100 bg-white/90 px-6 py-5 backdrop-blur-sm md:px-8"
+      >
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-4">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-zinc-50 text-slate-700">
+            <div
+              class="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-zinc-50 text-slate-700"
+            >
               <MonitorPlay class="h-6 w-6" />
             </div>
             <div>
-              <h1 class="text-xl font-semibold tracking-tight text-slate-900 md:text-2xl">LiteMart 实时经营大屏</h1>
+              <h1 class="text-xl font-semibold tracking-tight text-slate-900 md:text-2xl">
+                LiteMart 实时经营大屏
+              </h1>
               <p class="mt-1 flex items-center gap-2 text-sm text-slate-500">
                 <span class="relative flex h-2 w-2">
-                  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span
+                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+                  />
                   <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
                 实时监控中 · 每 30 秒自动刷新
@@ -218,7 +246,9 @@ onUnmounted(() => {
 
           <div class="flex items-center gap-3">
             <div class="rounded-2xl border border-slate-100 bg-zinc-50 px-4 py-2 text-right">
-              <p class="text-2xl font-semibold tabular-nums tracking-wider text-slate-900">{{ formatTime(now) }}</p>
+              <p class="text-2xl font-semibold tabular-nums tracking-wider text-slate-900">
+                {{ formatTime(now) }}
+              </p>
               <p class="text-xs text-slate-500">{{ formatDate(now) }}</p>
             </div>
             <NuxtLink
@@ -233,7 +263,11 @@ onUnmounted(() => {
       </header>
 
       <section class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article v-for="card in summaryCards" :key="card.key" class="rounded-3xl border border-slate-100 bg-white p-6">
+        <article
+          v-for="card in summaryCards"
+          :key="card.key"
+          class="rounded-3xl border border-slate-100 bg-white p-6"
+        >
           <div v-if="overviewPending" class="space-y-3">
             <Skeleton class="h-4 w-24" />
             <Skeleton class="h-9 w-32" />
@@ -246,7 +280,9 @@ onUnmounted(() => {
                 <component :is="card.icon" class="h-4 w-4" />
               </div>
             </div>
-            <p class="text-3xl font-semibold tracking-tight" :class="toneClassMap[card.tone].value">{{ card.value }}</p>
+            <p class="text-3xl font-semibold tracking-tight" :class="toneClassMap[card.tone].value">
+              {{ card.value }}
+            </p>
             <p class="mt-3 text-sm text-slate-500">{{ card.sub }}</p>
           </template>
         </article>
@@ -256,14 +292,32 @@ onUnmounted(() => {
         <article class="rounded-3xl border border-slate-100 bg-white p-6 2xl:col-span-7">
           <div class="mb-5 flex items-center gap-2">
             <Sparkles class="h-4 w-4 text-indigo-500" />
-            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">近 7 日营收波形图</h2>
+            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">
+              近 7 日营收波形图
+            </h2>
           </div>
 
           <div v-if="statsPending" class="space-y-4">
             <Skeleton class="h-[320px] w-full rounded-2xl" />
           </div>
+          <div
+            v-else-if="statsError"
+            class="rounded-2xl border border-rose-100 bg-rose-50/30 p-6 text-center text-sm text-rose-600"
+          >
+            {{ statsErrorMessage }}
+          </div>
+          <div
+            v-else-if="!hasTrendData"
+            class="rounded-2xl border border-dashed border-slate-200 bg-zinc-50/70 p-6 text-center text-sm text-slate-500"
+          >
+            近 7 日暂无营收数据
+          </div>
           <div v-else class="rounded-2xl border border-slate-100 bg-zinc-50/70 p-4">
-            <svg :viewBox="`0 0 ${chartWidth} ${chartHeight}`" class="h-[320px] w-full" preserveAspectRatio="none">
+            <svg
+              :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
+              class="h-[320px] w-full"
+              preserveAspectRatio="none"
+            >
               <defs>
                 <linearGradient id="revenue-area-gradient" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stop-color="rgb(79 70 229)" stop-opacity="0.35" />
@@ -283,14 +337,29 @@ onUnmounted(() => {
               </g>
 
               <path :d="trendAreaPath" fill="url(#revenue-area-gradient)" />
-              <path :d="trendLinePath" fill="none" stroke="rgb(79 70 229)" stroke-width="2.2" stroke-linecap="round" />
+              <path
+                :d="trendLinePath"
+                fill="none"
+                stroke="rgb(79 70 229)"
+                stroke-width="2.2"
+                stroke-linecap="round"
+              />
 
               <g v-for="point in trendPoints" :key="point.date">
-                <circle :cx="point.x" :cy="point.y" r="4.5" fill="white" stroke="rgb(79 70 229)" stroke-width="2" />
+                <circle
+                  :cx="point.x"
+                  :cy="point.y"
+                  r="4.5"
+                  fill="white"
+                  stroke="rgb(79 70 229)"
+                  stroke-width="2"
+                />
               </g>
             </svg>
             <div class="grid grid-cols-7 px-2">
-              <p v-for="item in trend" :key="item.date" class="text-center text-xs text-slate-500">{{ item.label }}</p>
+              <p v-for="item in trend" :key="item.date" class="text-center text-xs text-slate-500">
+                {{ item.label }}
+              </p>
             </div>
           </div>
         </article>
@@ -298,7 +367,9 @@ onUnmounted(() => {
         <article class="rounded-3xl border border-slate-100 bg-white p-6 2xl:col-span-5">
           <div class="mb-5 flex items-center gap-2">
             <Activity class="h-4 w-4 text-emerald-500" />
-            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">库存健康雷达</h2>
+            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">
+              库存健康雷达
+            </h2>
           </div>
 
           <div v-if="productsPending" class="space-y-4">
@@ -310,7 +381,14 @@ onUnmounted(() => {
               <div class="mb-2 text-xs uppercase tracking-[0.12em] text-slate-400">库存健康环</div>
               <div class="flex items-center gap-4">
                 <svg viewBox="0 0 120 120" class="h-28 w-28">
-                  <circle cx="60" cy="60" :r="donutRadius" fill="none" stroke="rgb(226 232 240)" stroke-width="10" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    :r="donutRadius"
+                    fill="none"
+                    stroke="rgb(226 232 240)"
+                    stroke-width="10"
+                  />
                   <circle
                     cx="60"
                     cy="60"
@@ -326,7 +404,9 @@ onUnmounted(() => {
                 <div>
                   <p class="text-3xl font-semibold text-emerald-600">{{ healthyRate }}%</p>
                   <p class="text-sm text-slate-500">健康库存占比</p>
-                  <p class="mt-2 text-xs text-slate-400">健康 {{ healthyCount }} · 预警 {{ warningCount }}</p>
+                  <p class="mt-2 text-xs text-slate-400">
+                    健康 {{ healthyCount }} · 预警 {{ warningCount }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -356,7 +436,9 @@ onUnmounted(() => {
         <article class="rounded-3xl border border-slate-100 bg-white p-6 2xl:col-span-4">
           <div class="mb-5 flex items-center gap-2">
             <Clock3 class="h-4 w-4 text-indigo-500" />
-            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">实时核销流水</h2>
+            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">
+              实时核销流水
+            </h2>
           </div>
 
           <div class="h-[300px] overflow-y-auto pr-1">
@@ -364,10 +446,17 @@ onUnmounted(() => {
               <Skeleton v-for="i in 6" :key="i" class="h-16 w-full rounded-xl" />
             </div>
             <div v-else class="space-y-3">
-              <p v-if="!recentOrders.length" class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+              <p
+                v-if="!recentOrders.length"
+                class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500"
+              >
                 暂无核销记录
               </p>
-              <div v-for="order in recentOrders" :key="order.id" class="rounded-xl border border-slate-100 bg-zinc-50 p-3">
+              <div
+                v-for="order in recentOrders"
+                :key="order.id"
+                class="rounded-xl border border-slate-100 bg-zinc-50 p-3"
+              >
                 <div class="mb-2 flex items-center justify-between">
                   <p class="font-mono text-xs text-slate-500">{{ order.orderNo }}</p>
                   <p class="text-xs text-indigo-600">
@@ -376,7 +465,9 @@ onUnmounted(() => {
                 </div>
                 <div class="flex items-center justify-between">
                   <p class="text-sm text-slate-600">{{ order.items.length }} 件商品</p>
-                  <p class="text-sm font-semibold text-slate-900">{{ formatPrice(order.totalAmount) }}</p>
+                  <p class="text-sm font-semibold text-slate-900">
+                    {{ formatPrice(order.totalAmount) }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -393,10 +484,24 @@ onUnmounted(() => {
             <Skeleton v-for="i in 6" :key="i" class="h-11 w-full rounded-xl" />
           </div>
           <div v-else class="space-y-4">
-            <p v-if="!topProducts.length" class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+            <p
+              v-if="statsError"
+              class="rounded-xl border border-rose-100 bg-rose-50/30 p-6 text-center text-sm text-rose-600"
+            >
+              {{ statsErrorMessage }}
+            </p>
+            <p
+              v-else-if="!topProducts.length"
+              class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500"
+            >
               暂无销售数据
             </p>
-            <div v-for="item in topProducts" :key="item.name" class="rounded-xl border border-slate-100 bg-zinc-50 p-3">
+            <div
+              v-for="item in topProducts"
+              v-else
+              :key="item.name"
+              class="rounded-xl border border-slate-100 bg-zinc-50 p-3"
+            >
               <div class="mb-2 flex items-center justify-between gap-2">
                 <p class="truncate text-sm font-medium text-slate-800">{{ item.name }}</p>
                 <p class="text-xs text-slate-500">{{ item.quantity }} 件</p>
@@ -404,7 +509,9 @@ onUnmounted(() => {
               <div class="h-2 rounded-full bg-slate-200">
                 <div
                   class="h-2 rounded-full bg-sky-500 transition-all duration-500"
-                  :style="{ width: `${(item.quantity / Math.max(topProducts[0]?.quantity || 1, 1)) * 100}%` }"
+                  :style="{
+                    width: `${(item.quantity / Math.max(topProducts[0]?.quantity || 1, 1)) * 100}%`
+                  }"
                 />
               </div>
             </div>
@@ -414,7 +521,9 @@ onUnmounted(() => {
         <article class="rounded-3xl border border-slate-100 bg-white p-6 2xl:col-span-4">
           <div class="mb-5 flex items-center gap-2">
             <Sparkles class="h-4 w-4 text-amber-500" />
-            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">分时交易热度</h2>
+            <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">
+              分时交易热度
+            </h2>
           </div>
 
           <div class="rounded-2xl border border-slate-100 bg-zinc-50 p-4">
@@ -423,7 +532,9 @@ onUnmounted(() => {
                 <div class="flex h-40 w-full items-end">
                   <div
                     class="w-full rounded-t-md bg-amber-400/85 transition-all duration-500"
-                    :style="{ height: `${Math.max((item.count / maxHourCount) * 100, item.count ? 16 : 6)}%` }"
+                    :style="{
+                      height: `${Math.max((item.count / maxHourCount) * 100, item.count ? 16 : 6)}%`
+                    }"
                   />
                 </div>
                 <p class="mt-2 text-[10px] text-slate-500">{{ item.label }}</p>
@@ -437,7 +548,9 @@ onUnmounted(() => {
       <section class="mt-6 rounded-3xl border border-slate-100 bg-white p-6">
         <div class="mb-5 flex items-center gap-2">
           <AlertTriangle class="h-4 w-4 text-amber-500" />
-          <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">库存预警明细</h2>
+          <h2 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-500">
+            库存预警明细
+          </h2>
         </div>
 
         <div v-if="productsPending" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -450,12 +563,20 @@ onUnmounted(() => {
           >
             当前无库存预警商品，库存健康。
           </p>
-          <article v-for="item in warningProducts" :key="item.id" class="rounded-xl border border-amber-100 bg-amber-50/70 p-4">
+          <article
+            v-for="item in warningProducts"
+            :key="item.id"
+            class="rounded-xl border border-amber-100 bg-amber-50/70 p-4"
+          >
             <p class="truncate text-sm font-medium text-slate-900">{{ item.name }}</p>
             <p class="mt-1 text-xs text-slate-500">SKU {{ item.sku }}</p>
             <div class="mt-3 flex items-center justify-between text-xs">
-              <span class="rounded-full bg-white px-2 py-1 text-slate-600">当前库存 {{ item.stock }}</span>
-              <span class="rounded-full bg-white px-2 py-1 text-amber-700">预警线 {{ item.minStock }}</span>
+              <span class="rounded-full bg-white px-2 py-1 text-slate-600"
+                >当前库存 {{ item.stock }}</span
+              >
+              <span class="rounded-full bg-white px-2 py-1 text-amber-700"
+                >预警线 {{ item.minStock }}</span
+              >
             </div>
           </article>
         </div>

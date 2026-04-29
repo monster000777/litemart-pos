@@ -19,7 +19,10 @@ export const useApiError = () => {
     if (!message.startsWith(prefix)) {
       return message
     }
-    return message.slice(prefix.length).trim().replace(/^[:：]\s*/, '')
+    return message
+      .slice(prefix.length)
+      .trim()
+      .replace(/^[:：]\s*/, '')
   }
 
   return {

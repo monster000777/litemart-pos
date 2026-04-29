@@ -26,7 +26,14 @@ export default defineEventHandler(async (event) => {
     const stock = Math.floor(Number(body.stock))
     const minStock = Math.floor(Number(body.minStock))
 
-    if (!name || !sku || !category || Number.isNaN(price) || Number.isNaN(stock) || Number.isNaN(minStock)) {
+    if (
+      !name ||
+      !sku ||
+      !category ||
+      Number.isNaN(price) ||
+      Number.isNaN(stock) ||
+      Number.isNaN(minStock)
+    ) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',

@@ -18,8 +18,8 @@ type RateLimiterOptions = {
 
 const DEFAULT_OPTIONS: RateLimiterOptions = {
   maxAttempts: 5,
-  windowMs: 5 * 60 * 1000,       // 5 分钟窗口
-  lockoutMs: 60 * 1000,           // 锁定 60 秒
+  windowMs: 5 * 60 * 1000, // 5 分钟窗口
+  lockoutMs: 60 * 1000, // 锁定 60 秒
   cleanupIntervalMs: 10 * 60 * 1000 // 每 10 分钟清理过期条目
 }
 
@@ -108,7 +108,8 @@ export class RateLimiter {
     this.cleanupTimer = setInterval(() => {
       const now = Date.now()
       for (const [key, entry] of this.store) {
-        const isExpired = now - entry.firstAttemptAt > this.options.windowMs && entry.lockedUntil <= now
+        const isExpired =
+          now - entry.firstAttemptAt > this.options.windowMs && entry.lockedUntil <= now
         if (isExpired) {
           this.store.delete(key)
         }

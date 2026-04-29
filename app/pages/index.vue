@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
-import { ImagePlus, LoaderCircle, Minus, PackageSearch, Plus, Search, Trash2, Printer } from 'lucide-vue-next'
+import {
+  ImagePlus,
+  LoaderCircle,
+  Minus,
+  PackageSearch,
+  Plus,
+  Search,
+  Trash2,
+  Printer
+} from 'lucide-vue-next'
 import Skeleton from '~/components/ui/skeleton/Skeleton.vue'
+import type { CartItemDto } from '~/types/cart'
 import type { CheckoutResponseDto } from '~/types/order'
 import type { ProductDto } from '~/types/product'
 import { onMounted, onUnmounted } from 'vue'
@@ -18,7 +28,7 @@ const cartStore = useCartStore()
 // 存储上一单记录，用于打印小票
 const lastOrder = ref<{
   orderNo: string
-  items: Array<any>
+  items: CartItemDto[]
   totalAmount: number
   customerTail?: string
   time: string
@@ -67,7 +77,9 @@ const totalAmount = computed(() =>
 
 const orderCount = computed(() => cartStore.items.reduce((sum, item) => sum + item.quantity, 0))
 
-const canCheckout = computed(() => cartStore.items.length > 0 && !isSubmitting.value && !pending.value)
+const canCheckout = computed(
+  () => cartStore.items.length > 0 && !isSubmitting.value && !pending.value
+)
 
 const [productListRef] = useAutoAnimate()
 const [cartListRef] = useAutoAnimate()
@@ -153,7 +165,7 @@ const checkout = async () => {
     })
 
     successMessage.value = `核销成功，订单号 ${result.orderNo}`
-    
+
     // 保存记录以供打印
     lastOrder.value = {
       orderNo: result.orderNo,
@@ -208,8 +220,8 @@ const { formatPrice } = useFormat()
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && barcodeBuffer.value.length >= 3) {
     const sku = barcodeBuffer.value
-    const product = products.value.find(p => p.sku === sku)
-    
+    const product = products.value.find((p) => p.sku === sku)
+
     if (product) {
       addToCart(product)
       toast({
@@ -218,7 +230,10 @@ const handleKeydown = (e: KeyboardEvent) => {
         duration: 2000
       })
       // 如果焦点在搜索框内，清空错误输入的条码
-      if (document.activeElement?.tagName === 'INPUT' && document.activeElement === document.querySelector('input[type="text"]')) {
+      if (
+        document.activeElement?.tagName === 'INPUT' &&
+        document.activeElement === document.querySelector('input[type="text"]')
+      ) {
         keyword.value = keyword.value.replace(sku, '')
       }
     } else {
@@ -231,7 +246,7 @@ const handleKeydown = (e: KeyboardEvent) => {
     barcodeBuffer.value = ''
     return
   }
-  
+
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
     barcodeBuffer.value += e.key
     if (barcodeTimeout) clearTimeout(barcodeTimeout)
@@ -272,7 +287,9 @@ const reprintReceipt = () => {
   <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <div class="lg:col-span-2 space-y-6">
       <div class="rounded-2xl border border-white/60 bg-white/70 p-4 backdrop-blur-xl">
-        <label class="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-4">
+        <label
+          class="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-4"
+        >
           <Search class="h-5 w-5 text-slate-400" />
           <input
             v-model="keyword"
@@ -332,8 +349,15 @@ const reprintReceipt = () => {
         >
           <div class="flex items-start justify-between">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100 bg-zinc-50">
-                <img v-if="product.image" :src="product.image" :alt="product.name" class="h-full w-full object-cover" />
+              <div
+                class="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-100 bg-zinc-50"
+              >
+                <img
+                  v-if="product.image"
+                  :src="product.image"
+                  :alt="product.name"
+                  class="h-full w-full object-cover"
+                />
                 <ImagePlus v-else class="h-4 w-4 text-slate-300" />
               </div>
               <div>
@@ -344,7 +368,9 @@ const reprintReceipt = () => {
             <p class="text-sm font-semibold text-slate-900">{{ formatPrice(product.price) }}</p>
           </div>
           <div class="mt-3 flex items-center justify-between text-xs">
-            <span class="rounded-full border border-slate-100 bg-zinc-50 px-2.5 py-1 text-slate-500">
+            <span
+              class="rounded-full border border-slate-100 bg-zinc-50 px-2.5 py-1 text-slate-500"
+            >
               库存 {{ product.stock }}
             </span>
             <span
@@ -353,16 +379,12 @@ const reprintReceipt = () => {
                 product.stock === 0
                   ? 'bg-slate-100 text-slate-500'
                   : product.stock <= product.minStock
-                  ? 'bg-amber-50 text-amber-600'
-                  : 'bg-emerald-50 text-emerald-600'
+                    ? 'bg-amber-50 text-amber-600'
+                    : 'bg-emerald-50 text-emerald-600'
               "
             >
               {{
-                product.stock === 0
-                  ? '缺货'
-                  : product.stock <= product.minStock
-                  ? '预警'
-                  : '正常'
+                product.stock === 0 ? '缺货' : product.stock <= product.minStock ? '预警' : '正常'
               }}
             </span>
           </div>
@@ -376,7 +398,11 @@ const reprintReceipt = () => {
         </div>
 
         <div v-if="pending" class="space-y-3">
-          <div v-for="item in 6" :key="item" class="rounded-2xl border border-slate-100 bg-white p-4">
+          <div
+            v-for="item in 6"
+            :key="item"
+            class="rounded-2xl border border-slate-100 bg-white p-4"
+          >
             <div class="flex items-start justify-between">
               <div class="space-y-2">
                 <Skeleton class="h-4 w-40" />
@@ -409,9 +435,9 @@ const reprintReceipt = () => {
             <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Receipt</p>
             <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">结算预览</h2>
           </div>
-          <button 
-            type="button" 
-            class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900" 
+          <button
+            type="button"
+            class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
             title="重打上一单小票"
             @click="reprintReceipt"
           >
@@ -463,7 +489,9 @@ const reprintReceipt = () => {
                 >
                   <Minus class="h-3.5 w-3.5" />
                 </button>
-                <span class="w-8 text-center text-sm font-medium text-slate-900">{{ item.quantity }}</span>
+                <span class="w-8 text-center text-sm font-medium text-slate-900">{{
+                  item.quantity
+                }}</span>
                 <button
                   type="button"
                   class="rounded-md border border-slate-200 bg-white p-1 text-slate-600 transition hover:text-slate-900"
@@ -489,7 +517,9 @@ const reprintReceipt = () => {
 
         <div class="mt-6 border-t border-dashed border-slate-200 pt-4">
           <div class="mb-3 space-y-1.5">
-            <label class="text-xs font-medium uppercase tracking-[0.12em] text-slate-400">手机号尾号</label>
+            <label class="text-xs font-medium uppercase tracking-[0.12em] text-slate-400"
+              >手机号尾号</label
+            >
             <input
               v-model="customerTail"
               type="text"
@@ -528,28 +558,32 @@ const reprintReceipt = () => {
       <div class="text-center font-bold text-xl mb-4 tracking-widest">LiteMart POS</div>
       <div class="mb-2 text-xs">订单号：{{ lastOrder.orderNo }}</div>
       <div class="mb-2 text-xs">时间：{{ lastOrder.time }}</div>
-      <div v-if="lastOrder.customerTail" class="mb-4 text-xs">客户(尾号)：{{ lastOrder.customerTail }}</div>
-      
+      <div v-if="lastOrder.customerTail" class="mb-4 text-xs">
+        客户(尾号)：{{ lastOrder.customerTail }}
+      </div>
+
       <div class="border-t-2 border-b-2 border-black border-dashed py-3 mb-3">
         <div class="flex justify-between font-bold text-xs mb-2">
           <div class="flex-1">商品</div>
           <div class="w-10 text-center">数量</div>
           <div class="w-16 text-right">小计</div>
         </div>
-        <div v-for="item in lastOrder.items" :key="item.id" class="flex justify-between mb-2 text-xs">
+        <div
+          v-for="item in lastOrder.items"
+          :key="item.id"
+          class="flex justify-between mb-2 text-xs"
+        >
           <div class="flex-1 pr-2 break-all">{{ item.name }}</div>
           <div class="w-10 text-center">x{{ item.quantity }}</div>
           <div class="w-16 text-right">{{ formatPrice(item.price * item.quantity) }}</div>
         </div>
       </div>
-      
+
       <div class="flex justify-between font-bold text-base mt-2">
         <span>合计金额</span>
         <span>{{ formatPrice(lastOrder.totalAmount) }}</span>
       </div>
-      <div class="text-center mt-10 text-xs text-gray-500 pb-8">
-        谢谢惠顾，欢迎再次光临
-      </div>
+      <div class="text-center mt-10 text-xs text-gray-500 pb-8">谢谢惠顾，欢迎再次光临</div>
     </div>
   </section>
 </template>

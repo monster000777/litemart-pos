@@ -9,9 +9,11 @@ const { data: overview, pending: overviewPending } = await useAsyncData('insight
   $fetch<InsightsOverviewDto>('/api/insights/overview')
 )
 
-const { data: stats, pending: statsPending } = await useAsyncData('insights-stats', () =>
-  $fetch<InsightsStatsDto>('/api/insights/stats')
-)
+const {
+  data: stats,
+  pending: statsPending,
+  error: statsError
+} = await useAsyncData('insights-stats', () => $fetch<InsightsStatsDto>('/api/insights/stats'))
 
 const metrics = computed(() => [
   {
@@ -53,6 +55,10 @@ const chartPadding = {
 }
 
 const trend = computed(() => stats.value?.trend ?? [])
+const hasTrendData = computed(() => trend.value.some((item) => item.amount > 0))
+const statsErrorMessage = computed(() =>
+  statsError.value ? getApiErrorMessage(statsError.value, '经营统计加载失败，请稍后重试') : ''
+)
 const maxAmount = computed(() => Math.max(...trend.value.map((item) => item.amount), 1))
 
 const chartPoints = computed(() => {
@@ -89,7 +95,7 @@ const areaPath = computed(() => {
 
 // --- Top Products ---
 const topProducts = computed(() => stats.value?.topProducts ?? [])
-const maxTopQuantity = computed(() => Math.max(...topProducts.value.map(p => p.quantity), 1))
+const maxTopQuantity = computed(() => Math.max(...topProducts.value.map((p) => p.quantity), 1))
 
 // --- AI Summary Logic ---
 const aiNonce = ref(Date.now())
@@ -148,11 +154,17 @@ const formattedAiSummary = computed(() => {
 
   text = text.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-semibold">$1</strong>')
-  text = text.replace(/【(.*?)】/g, '<span class="inline-block mt-4 mb-1 font-bold text-indigo-600 text-base">【$1】</span><br/>')
-  text = text.replace(/^(?:\d+\.|-)\s(.*$)/gim, '<div class="pl-4 relative before:content-[\'•\'] before:absolute before:left-0 before:text-slate-400">$1</div>')
+  text = text.replace(
+    /【(.*?)】/g,
+    '<span class="inline-block mt-4 mb-1 font-bold text-indigo-600 text-base">【$1】</span><br/>'
+  )
+  text = text.replace(
+    /^(?:\d+\.|-)\s(.*$)/gim,
+    '<div class="pl-4 relative before:content-[\'•\'] before:absolute before:left-0 before:text-slate-400">$1</div>'
+  )
   text = text.replace(/\n/g, '<br/>')
   text = text.replace(/(<br\/>){3,}/g, '<br/><br/>')
-  
+
   return text
 })
 </script>
@@ -165,7 +177,11 @@ const formattedAiSummary = computed(() => {
     </header>
 
     <div v-if="overviewPending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <article class="rounded-2xl border border-slate-100 bg-white px-6 py-5" v-for="item in 6" :key="item">
+      <article
+        v-for="item in 6"
+        :key="item"
+        class="rounded-2xl border border-slate-100 bg-white px-6 py-5"
+      >
         <Skeleton class="h-3 w-20" />
         <Skeleton class="mt-4 h-8 w-28" />
       </article>
@@ -178,13 +194,13 @@ const formattedAiSummary = computed(() => {
         class="rounded-2xl border bg-white px-6 py-5 transition-all"
         :class="metric.danger ? 'border-rose-100 bg-rose-50/30' : 'border-slate-100'"
       >
-        <p 
+        <p
           class="text-xs uppercase tracking-[0.14em]"
           :class="metric.danger ? 'text-rose-500' : 'text-slate-400'"
         >
           {{ metric.label }}
         </p>
-        <p 
+        <p
           class="mt-3 text-3xl font-semibold tracking-tight"
           :class="[
             metric.danger ? 'text-rose-600' : 'text-slate-900',
@@ -200,14 +216,30 @@ const formattedAiSummary = computed(() => {
       <!-- 销售趋势 -->
       <article class="lg:col-span-2 rounded-2xl border border-slate-100 bg-white p-8">
         <div class="mb-5 flex items-center justify-between">
-          <h3 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-400">近 7 日销售趋势</h3>
+          <h3 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-400">
+            近 7 日销售趋势
+          </h3>
         </div>
 
         <div v-if="statsPending" class="space-y-4">
           <Skeleton class="h-[260px] w-full rounded-2xl" />
           <div class="grid grid-cols-7 gap-2">
-            <Skeleton class="h-3 w-full" v-for="item in 7" :key="item" />
+            <Skeleton v-for="item in 7" :key="item" class="h-3 w-full" />
           </div>
+        </div>
+
+        <div
+          v-else-if="statsError"
+          class="rounded-2xl border border-rose-100 bg-rose-50/30 p-6 text-center text-sm text-rose-600"
+        >
+          {{ statsErrorMessage }}
+        </div>
+
+        <div
+          v-else-if="!hasTrendData"
+          class="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500"
+        >
+          近 7 日暂无销售数据
         </div>
 
         <div v-else class="space-y-3">
@@ -223,7 +255,13 @@ const formattedAiSummary = computed(() => {
               </linearGradient>
             </defs>
             <path :d="areaPath" fill="url(#sales-area-gradient)" />
-            <path :d="linePath" fill="none" stroke="rgb(15 23 42)" stroke-width="1.2" stroke-linecap="round" />
+            <path
+              :d="linePath"
+              fill="none"
+              stroke="rgb(15 23 42)"
+              stroke-width="1.2"
+              stroke-linecap="round"
+            />
           </svg>
 
           <div class="grid grid-cols-7 gap-2 px-1">
@@ -236,22 +274,37 @@ const formattedAiSummary = computed(() => {
 
       <!-- 热销排行 -->
       <article class="rounded-2xl border border-slate-100 bg-white p-8">
-        <h3 class="mb-5 text-sm font-medium uppercase tracking-[0.14em] text-slate-400">热销商品排行 (近 7 日)</h3>
-        
+        <h3 class="mb-5 text-sm font-medium uppercase tracking-[0.14em] text-slate-400">
+          热销商品排行 (近 7 日)
+        </h3>
+
         <div v-if="statsPending" class="space-y-6 mt-8">
-          <Skeleton class="h-10 w-full rounded-lg" v-for="i in 5" :key="i" />
+          <Skeleton v-for="i in 5" :key="i" class="h-10 w-full rounded-lg" />
         </div>
-        
+
         <div v-else class="space-y-5 mt-6">
-          <div v-if="topProducts.length === 0" class="text-slate-400 text-sm py-8 text-center">暂无近期销售数据</div>
-          <div v-for="item in topProducts" :key="item.name" class="relative group">
+          <div
+            v-if="statsError"
+            class="rounded-xl border border-rose-100 bg-rose-50/30 p-6 text-center text-sm text-rose-600"
+          >
+            {{ statsErrorMessage }}
+          </div>
+          <div v-else-if="topProducts.length === 0" class="text-slate-400 text-sm py-8 text-center">
+            暂无近期销售数据
+          </div>
+          <div v-for="item in topProducts" v-else :key="item.name" class="relative group">
             <div class="flex justify-between items-end mb-2">
-              <span class="text-slate-700 text-[0.95rem] font-medium truncate pr-4">{{ item.name }}</span>
-              <span class="text-slate-900 font-semibold shrink-0">{{ item.quantity }}<span class="text-xs text-slate-400 font-normal ml-1">件</span></span>
+              <span class="text-slate-700 text-[0.95rem] font-medium truncate pr-4">{{
+                item.name
+              }}</span>
+              <span class="text-slate-900 font-semibold shrink-0"
+                >{{ item.quantity
+                }}<span class="text-xs text-slate-400 font-normal ml-1">件</span></span
+              >
             </div>
             <div class="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
-              <div 
-                class="h-full bg-indigo-500 rounded-full transition-all duration-500 group-hover:bg-indigo-600" 
+              <div
+                class="h-full bg-indigo-500 rounded-full transition-all duration-500 group-hover:bg-indigo-600"
                 :style="{ width: `${(item.quantity / maxTopQuantity) * 100}%` }"
               ></div>
             </div>
@@ -264,7 +317,9 @@ const formattedAiSummary = computed(() => {
     <article class="rounded-2xl border border-slate-100 bg-white p-8">
       <div class="mb-6 flex items-center justify-between">
         <div>
-          <h3 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-400">AI 周报建议</h3>
+          <h3 class="text-sm font-medium uppercase tracking-[0.14em] text-slate-400">
+            AI 周报建议
+          </h3>
           <p v-if="aiSummary?.batch" class="mt-2 text-xs text-slate-400">
             批次 {{ aiSummary.batch }} · 生成于 {{ aiGeneratedLabel }}
           </p>
@@ -291,7 +346,12 @@ const formattedAiSummary = computed(() => {
         <p v-else-if="aiError" class="text-lg leading-8 text-rose-600">
           AI 简报生成失败：{{ aiErrorMessage }}
         </p>
-        <div v-else class="text-[1.05rem] leading-8 text-slate-600" v-html="formattedAiSummary"></div>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div
+          v-else
+          class="text-[1.05rem] leading-8 text-slate-600"
+          v-html="formattedAiSummary"
+        ></div>
       </div>
     </article>
   </section>

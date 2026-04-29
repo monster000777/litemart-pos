@@ -22,7 +22,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 <template>
   <Teleport to="body">
     <Transition name="sheet-fade">
-      <div v-if="open" class="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]" @click="setOpen(false)" />
+      <div
+        v-if="open"
+        class="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+        @click="setOpen(false)"
+      />
     </Transition>
     <Transition name="sheet-slide">
       <aside
@@ -53,7 +57,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
 }
 .sheet-slide-enter-active,
 .sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.24s ease;
+  transition:
+    transform 0.24s ease,
+    opacity 0.24s ease;
 }
 .sheet-slide-enter-from,
 .sheet-slide-leave-to {

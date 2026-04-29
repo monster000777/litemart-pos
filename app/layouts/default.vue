@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { BarChart3, Boxes, ClipboardList, LogOut, ScrollText, ShoppingCart, MonitorPlay, Bot } from 'lucide-vue-next'
+import {
+  BarChart3,
+  Boxes,
+  ClipboardList,
+  LogOut,
+  ScrollText,
+  ShoppingCart,
+  MonitorPlay,
+  Bot
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const loggingOut = ref(false)
@@ -14,7 +23,6 @@ const navItems = [
   { label: 'Copilot', title: '智能助理', to: '/ai', icon: Bot },
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
   { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
-  
 ]
 
 const isActive = (to: string) => {
@@ -29,7 +37,7 @@ const fetchAlerts = async () => {
     const res = await $fetch<{ count: number }>('/api/products/alerts')
     alertCount.value = res.count
   } catch {
-    // 静默失败
+    alertCount.value = 0
   }
 }
 
@@ -72,27 +80,37 @@ const logout = async () => {
         </div>
 
         <nav class="mt-6 space-y-1.5">
-          <NuxtLink v-for="item in navItems" :key="item.to" :to="item.to"
+          <NuxtLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
             class="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-all duration-200"
-            :class="isActive(item.to)
+            :class="
+              isActive(item.to)
                 ? 'border-slate-100 bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)]'
                 : 'text-slate-500 hover:border-slate-100 hover:bg-white/70 hover:text-slate-900'
-              ">
+            "
+          >
             <component :is="item.icon" class="h-4 w-4" />
             <div class="flex-1 leading-tight">
               <p class="font-medium">{{ item.title }}</p>
               <p class="text-xs text-slate-400">{{ item.label }}</p>
             </div>
-            <span v-if="item.badge && alertCount > 0"
-              class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
+            <span
+              v-if="item.badge && alertCount > 0"
+              class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white"
+            >
               {{ alertCount > 99 ? '99+' : alertCount }}
             </span>
           </NuxtLink>
         </nav>
 
-        <button type="button"
+        <button
+          type="button"
           class="mt-auto inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="loggingOut" @click="logout">
+          :disabled="loggingOut"
+          @click="logout"
+        >
           <LogOut class="h-4 w-4" />
           <span>{{ loggingOut ? '退出中...' : '退出登录' }}</span>
         </button>

@@ -1,5 +1,10 @@
 import { H3Error } from 'h3'
-import { createSessionToken, hashPin, isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
+import {
+  createSessionToken,
+  hashPin,
+  isValidPinFormat,
+  verifyPin
+} from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'

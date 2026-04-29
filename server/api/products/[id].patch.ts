@@ -32,14 +32,22 @@ export default defineEventHandler(async (event) => {
     if (body.name !== undefined) {
       const name = body.name.trim()
       if (!name) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: '商品名称不能为空' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: '商品名称不能为空'
+        })
       }
       data.name = name
     }
     if (body.sku !== undefined) {
       const sku = body.sku.trim()
       if (!sku) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: 'SKU 不能为空' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: 'SKU 不能为空'
+        })
       }
       data.sku = sku
     }
@@ -49,28 +57,44 @@ export default defineEventHandler(async (event) => {
     if (body.category !== undefined) {
       const category = body.category.trim()
       if (!category) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: '分类不能为空' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: '分类不能为空'
+        })
       }
       data.category = category
     }
     if (body.price !== undefined) {
       const price = Number(body.price)
       if (Number.isNaN(price) || price < 0) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: '价格格式错误' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: '价格格式错误'
+        })
       }
       data.price = price
     }
     if (body.stock !== undefined) {
       const stock = Math.floor(Number(body.stock))
       if (Number.isNaN(stock) || stock < 0) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: '库存格式错误' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: '库存格式错误'
+        })
       }
       data.stock = stock
     }
     if (body.minStock !== undefined) {
       const minStock = Math.floor(Number(body.minStock))
       if (Number.isNaN(minStock) || minStock < 0) {
-        throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: '预警值格式错误' })
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: '预警值格式错误'
+        })
       }
       data.minStock = minStock
     }

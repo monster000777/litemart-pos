@@ -1,21 +1,33 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const authState = useState<boolean | null>('auth:verified', () => null)
+  const authVerifiedAt = useState<number>('auth:verifiedAt', () => 0)
+  const CLIENT_AUTH_CACHE_MS = 15_000
 
-  const verifySession = async () => {
+  const verifySession = async (force = false) => {
+    const hasFreshClientCache =
+      import.meta.client &&
+      authState.value !== null &&
+      Date.now() - authVerifiedAt.value < CLIENT_AUTH_CACHE_MS
+
+    if (!force && hasFreshClientCache) {
+      return authState.value
+    }
     try {
       await $fetch('/api/auth/session', {
         headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined
       })
       authState.value = true
+      authVerifiedAt.value = Date.now()
       return true
     } catch {
       authState.value = false
+      authVerifiedAt.value = Date.now()
       return false
     }
   }
 
   if (to.path === '/login') {
-    const authenticated = await verifySession()
+    const authenticated = await verifySession(authState.value === false)
     if (authenticated) {
       return navigateTo('/')
     }

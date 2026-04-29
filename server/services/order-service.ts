@@ -201,7 +201,8 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
         }
       })
     } catch (error) {
-      const target = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.target : undefined
+      const target =
+        error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.target : undefined
       const conflictOnOrderNo =
         (Array.isArray(target) && target.includes('orderNo')) ||
         (typeof target === 'string' && target.includes('orderNo'))

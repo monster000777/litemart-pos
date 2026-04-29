@@ -17,10 +17,14 @@ import TableRow from '~/components/ui/table/TableRow.vue'
 import type { ProductDto } from '~/types/product'
 import type { UploadResponseDto } from '~/types/upload'
 
-const { data, pending, error } = await useAsyncData('inventory-products', () => $fetch<ProductDto[]>('/api/products'))
+const { data, pending, error } = await useAsyncData('inventory-products', () =>
+  $fetch<ProductDto[]>('/api/products')
+)
 const products = computed(() => data.value ?? [])
 
-const warningCount = computed(() => products.value.filter((item) => item.stock <= item.minStock).length)
+const warningCount = computed(
+  () => products.value.filter((item) => item.stock <= item.minStock).length
+)
 const healthyCount = computed(() => products.value.length - warningCount.value)
 
 const restockSuggestions = ref<
@@ -152,29 +156,35 @@ const generateSuggestions = () => {
 const restocking = ref(false)
 const executeRestock = async () => {
   if (restocking.value || restockSuggestions.value.length === 0) return
-  
+
   const ok = window.confirm(`确认自动为 ${restockSuggestions.value.length} 个预警商品执行补货？`)
   if (!ok) return
-  
+
   restocking.value = true
   try {
-    await Promise.all(restockSuggestions.value.map(async (item) => {
-      const product = products.value.find(p => p.id === item.id)
-      if (product) {
-        await $fetch(`/api/products/${item.id}`, {
-          method: 'PATCH',
-          body: {
-            ...product,
-            stock: product.stock + item.suggestQty
-          }
-        })
-      }
-    }))
+    await Promise.all(
+      restockSuggestions.value.map(async (item) => {
+        const product = products.value.find((p) => p.id === item.id)
+        if (product) {
+          await $fetch(`/api/products/${item.id}`, {
+            method: 'PATCH',
+            body: {
+              ...product,
+              stock: product.stock + item.suggestQty
+            }
+          })
+        }
+      })
+    )
     toast({ title: '批量补货成功，已入库', variant: 'success', duration: 3000 })
     restockSuggestions.value = []
     await refreshInventory()
   } catch (error) {
-    toast({ title: getApiErrorMessage(error, '批量补货遭遇异常，请稍后重试'), variant: 'error', duration: 3000 })
+    toast({
+      title: getApiErrorMessage(error, '批量补货遭遇异常，请稍后重试'),
+      variant: 'error',
+      duration: 3000
+    })
   } finally {
     restocking.value = false
   }
@@ -279,9 +289,13 @@ const deleteProduct = async (product: ProductDto) => {
 
 <template>
   <section class="space-y-6">
-    <header class="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-8">
+    <header
+      class="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-8"
+    >
       <div>
-        <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Inventory Matrix</p>
+        <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+          Inventory Matrix
+        </p>
         <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">库存矩阵</h2>
         <p class="mt-2 text-sm text-slate-500">
           充足 <span class="font-medium text-emerald-600">{{ healthyCount }}</span> · 预警
@@ -319,10 +333,16 @@ const deleteProduct = async (product: ProductDto) => {
     </header>
 
     <div class="space-y-2">
-      <p v-if="feedback" class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+      <p
+        v-if="feedback"
+        class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-sm text-emerald-700"
+      >
         {{ feedback }}
       </p>
-      <p v-if="pageError" class="rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm text-rose-700">
+      <p
+        v-if="pageError"
+        class="rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm text-rose-700"
+      >
         {{ pageError }}
       </p>
       <p
@@ -334,8 +354,13 @@ const deleteProduct = async (product: ProductDto) => {
     </div>
 
     <div ref="suggestionRef" class="space-y-3">
-      <div v-if="restockSuggestions.length > 0" class="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
-        <span class="text-sm font-medium text-indigo-700">共发现 {{ restockSuggestions.length }} 个需要补货的商品。</span>
+      <div
+        v-if="restockSuggestions.length > 0"
+        class="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3"
+      >
+        <span class="text-sm font-medium text-indigo-700"
+          >共发现 {{ restockSuggestions.length }} 个需要补货的商品。</span
+        >
         <button
           type="button"
           class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
@@ -351,7 +376,8 @@ const deleteProduct = async (product: ProductDto) => {
         :key="item.id"
         class="rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 text-sm text-amber-700"
       >
-        建议补货：<span class="font-medium">{{ item.name }}</span>（{{ item.sku }}）× {{ item.suggestQty }}
+        建议补货：<span class="font-medium">{{ item.name }}</span
+        >（{{ item.sku }}）× {{ item.suggestQty }}
       </div>
     </div>
 
@@ -401,7 +427,9 @@ const deleteProduct = async (product: ProductDto) => {
                       : 'bg-emerald-500'
                   "
                 />
-                <span :class="product.stock <= product.minStock ? 'text-amber-700' : 'text-emerald-700'">
+                <span
+                  :class="product.stock <= product.minStock ? 'text-amber-700' : 'text-emerald-700'"
+                >
                   {{ product.stock <= product.minStock ? '预警' : '库存充足' }}
                 </span>
               </div>
@@ -464,10 +492,23 @@ const deleteProduct = async (product: ProductDto) => {
         <form class="mt-8 space-y-6" @submit.prevent="submitForm">
           <div class="space-y-3">
             <label class="text-sm font-medium text-slate-700">商品图片</label>
-            <input ref="imageInputRef" type="file" accept="image/*" class="hidden" @change="uploadImage" />
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="uploadImage"
+            />
             <div class="flex items-center gap-4">
-              <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-zinc-50">
-                <img v-if="form.image" :src="form.image" alt="商品预览" class="h-full w-full object-cover" />
+              <div
+                class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-zinc-50"
+              >
+                <img
+                  v-if="form.image"
+                  :src="form.image"
+                  alt="商品预览"
+                  class="h-full w-full object-cover"
+                />
                 <ImagePlus v-else class="h-5 w-5 text-slate-300" />
               </div>
               <button
@@ -550,7 +591,10 @@ const deleteProduct = async (product: ProductDto) => {
             />
           </div>
 
-          <p v-if="formError" class="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          <p
+            v-if="formError"
+            class="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+          >
             {{ formError }}
           </p>
 

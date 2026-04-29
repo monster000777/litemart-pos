@@ -25,6 +25,10 @@ npm run dev
 npm run dev
 npm run build
 npm run preview
+npm run lint
+npm run lint:fix
+npm run format:check
+npm run format
 npm run prisma:migrate
 npm run prisma:generate
 npx prisma db seed
@@ -43,6 +47,7 @@ NUXT_MINIMAX_MODEL=
 ```
 
 说明：
+
 - `NUXT_MINIMAX_API_KEY`：可选；配置后会调用 MiniMax 生成简报，不配置时使用本地兜底简报
 - `NUXT_MINIMAX_API_URL`：可选，默认走 MiniMax 聊天接口
 - `NUXT_MINIMAX_MODEL`：可选，默认 `abab6.5-chat`

@@ -12,7 +12,5 @@ export default <Partial<Config>>{
   theme: {
     extend: {}
   },
-  plugins: [
-    typography
-  ]
+  plugins: [typography]
 }

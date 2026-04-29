@@ -58,13 +58,26 @@ const activePin = computed({
     return resetConfirmPin.value
   },
   set: (value: string) => {
-    if (mode.value === MODE_LOGIN) { loginPin.value = value; return }
-    if (mode.value === MODE_REGISTER) {
-      if (registerStep.value === STEP_PIN) { registerPin.value = value; return }
-      confirmPin.value = value; return
+    if (mode.value === MODE_LOGIN) {
+      loginPin.value = value
+      return
     }
-    if (resetStep.value === STEP_OLD) { resetOldPin.value = value; return }
-    if (resetStep.value === STEP_NEW) { resetNewPin.value = value; return }
+    if (mode.value === MODE_REGISTER) {
+      if (registerStep.value === STEP_PIN) {
+        registerPin.value = value
+        return
+      }
+      confirmPin.value = value
+      return
+    }
+    if (resetStep.value === STEP_OLD) {
+      resetOldPin.value = value
+      return
+    }
+    if (resetStep.value === STEP_NEW) {
+      resetNewPin.value = value
+      return
+    }
     resetConfirmPin.value = value
   }
 })
@@ -134,7 +147,10 @@ const completeAuthFlow = async () => {
 }
 
 const handleApiError = (error: unknown, fallback: string) => {
-  const err = error as { data?: { data?: { lockSeconds?: number }; message?: string }; message?: string } | null
+  const err = error as {
+    data?: { data?: { lockSeconds?: number }; message?: string }
+    message?: string
+  } | null
   if (err?.data?.data?.lockSeconds) {
     startLockCountdown(err.data.data.lockSeconds)
   }

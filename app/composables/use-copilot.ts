@@ -4,12 +4,19 @@ export interface CopilotMessage {
   content: string
 }
 
+type ApiErrorLike = {
+  data?: {
+    message?: string
+  }
+  message?: string
+}
+
 export interface CopilotSession {
   id: string
   title: string
   updatedAt: number
   messages: CopilotMessage[]
-  pending: boolean  // 每个会话独立的加载状态
+  pending: boolean // 每个会话独立的加载状态
 }
 
 // 使用模块级变量保持单例，避免每次调用 composable 时重新创建
@@ -20,7 +27,7 @@ const activeSessionId = ref<string>('')
 const chatInput = ref('')
 
 export function useCopilot() {
-  const activeSession = computed(() => sessions.value.find(s => s.id === activeSessionId.value))
+  const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value))
   const chatHistory = computed(() => activeSession.value?.messages || [])
   // 当前活跃会话的加载状态（UI 层绑定此值）
   const chatPending = computed(() => activeSession.value?.pending ?? false)
@@ -37,9 +44,10 @@ export function useCopilot() {
       try {
         const parsed: CopilotSession[] = JSON.parse(savedSessions)
         // 确保老数据兼容：补全 pending 字段
-        sessions.value = parsed.map(s => ({ ...s, pending: false }))
-        if (sessions.value.length > 0) {
-          activeSessionId.value = sessions.value[0].id
+        sessions.value = parsed.map((s) => ({ ...s, pending: false }))
+        const firstSession = sessions.value.at(0)
+        if (firstSession) {
+          activeSessionId.value = firstSession.id
         } else {
           createNewSession()
         }
@@ -53,14 +61,19 @@ export function useCopilot() {
         try {
           const messages = JSON.parse(oldHistory)
           if (messages.length > 0) {
-            sessions.value = [{
-              id: Date.now().toString(),
-              title: '历史会话',
-              updatedAt: Date.now(),
-              messages,
-              pending: false
-            }]
-            activeSessionId.value = sessions.value[0].id
+            sessions.value = [
+              {
+                id: Date.now().toString(),
+                title: '历史会话',
+                updatedAt: Date.now(),
+                messages,
+                pending: false
+              }
+            ]
+            const firstSession = sessions.value.at(0)
+            if (firstSession) {
+              activeSessionId.value = firstSession.id
+            }
           } else {
             createNewSession()
           }
@@ -74,17 +87,37 @@ export function useCopilot() {
     }
 
     // 持久化 watcher —— 序列化时排除运行时 pending 状态
-    watch(sessions, (val) => {
-      if (import.meta.client) {
-        const serializable = val.map(({ pending, ...rest }) => rest)
-        localStorage.setItem('litemart-copilot-sessions', JSON.stringify(serializable))
-      }
-    }, { deep: true })
+    // 使用 detached effectScope 确保 watcher 不会随组件卸载而销毁，从而保证后台请求完成时仍能持久化
+    const scope = effectScope(true)
+    scope.run(() => {
+      watch(
+        sessions,
+        (val) => {
+          if (import.meta.client) {
+            const serializable = val.map((session) => {
+              const snapshot: CopilotSession = {
+                ...session,
+                messages: [...session.messages],
+                pending: false
+              }
+              return {
+                id: snapshot.id,
+                title: snapshot.title,
+                updatedAt: snapshot.updatedAt,
+                messages: snapshot.messages
+              }
+            })
+            localStorage.setItem('litemart-copilot-sessions', JSON.stringify(serializable))
+          }
+        },
+        { deep: true }
+      )
+    })
   }
 
   const createNewSession = () => {
     // 查找是否已经存在空会话（避免堆积一堆"新对话"）
-    const emptySession = sessions.value.find(s => s.messages.length === 0)
+    const emptySession = sessions.value.find((s) => s.messages.length === 0)
     if (emptySession) {
       activeSessionId.value = emptySession.id
       return
@@ -102,17 +135,20 @@ export function useCopilot() {
   }
 
   const deleteSession = (id: string) => {
-    const target = sessions.value.find(s => s.id === id)
+    const target = sessions.value.find((s) => s.id === id)
     // 阻止删除正在请求中的会话，避免请求完成后写入已销毁对象
     if (target?.pending) return
 
-    const idx = sessions.value.findIndex(s => s.id === id)
+    const idx = sessions.value.findIndex((s) => s.id === id)
     if (idx !== -1) {
       sessions.value.splice(idx, 1)
       if (sessions.value.length === 0) {
         createNewSession()
       } else if (activeSessionId.value === id) {
-        activeSessionId.value = sessions.value[0].id
+        const firstSession = sessions.value.at(0)
+        if (firstSession) {
+          activeSessionId.value = firstSession.id
+        }
       }
     }
   }
@@ -148,7 +184,7 @@ export function useCopilot() {
     session.pending = true
 
     try {
-      const res = await $fetch<{reply: string}>('/api/insights/chat', {
+      const res = await $fetch<{ reply: string }>('/api/insights/chat', {
         method: 'POST',
         body: {
           question: text.trim(),
@@ -157,8 +193,9 @@ export function useCopilot() {
       })
       session.messages.push({ role: 'assistant', content: res.reply })
       session.updatedAt = Date.now()
-    } catch (error: any) {
-      const msg = error?.data?.message || error?.message || '发送失败'
+    } catch (error: unknown) {
+      const err = error as ApiErrorLike
+      const msg = err.data?.message || err.message || '发送失败'
       session.messages.push({ role: 'assistant', content: `[发送失败] ${msg}` })
       session.updatedAt = Date.now()
     } finally {

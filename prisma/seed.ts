@@ -12,18 +12,67 @@ type SeedProductTemplate = {
 }
 
 const productTemplates: SeedProductTemplate[] = [
-  { name: '元气森林气泡水', category: '饮料', priceRange: [4.5, 6.5], stockRange: [20, 50], minStockRange: [8, 16] },
-  { name: '乐事原味薯片', category: '零食', priceRange: [5.0, 7.5], stockRange: [18, 42], minStockRange: [8, 14] },
-  { name: '得力 0.5mm 黑色签字笔', category: '文具', priceRange: [2.0, 3.5], stockRange: [30, 80], minStockRange: [12, 24] },
-  { name: '农夫山泉550ml', category: '饮料', priceRange: [2.0, 3.5], stockRange: [24, 60], minStockRange: [10, 18] },
-  { name: '康师傅红烧牛肉面', category: '速食', priceRange: [4.0, 6.0], stockRange: [16, 40], minStockRange: [6, 12] },
-  { name: '伊利纯牛奶250ml', category: '乳品', priceRange: [3.0, 4.8], stockRange: [20, 45], minStockRange: [8, 14] },
-  { name: '晨光A5软抄本', category: '文具', priceRange: [4.0, 6.5], stockRange: [20, 50], minStockRange: [8, 15] },
-  { name: '德芙丝滑巧克力', category: '零食', priceRange: [6.0, 9.5], stockRange: [12, 36], minStockRange: [6, 12] }
+  {
+    name: '元气森林气泡水',
+    category: '饮料',
+    priceRange: [4.5, 6.5],
+    stockRange: [20, 50],
+    minStockRange: [8, 16]
+  },
+  {
+    name: '乐事原味薯片',
+    category: '零食',
+    priceRange: [5.0, 7.5],
+    stockRange: [18, 42],
+    minStockRange: [8, 14]
+  },
+  {
+    name: '得力 0.5mm 黑色签字笔',
+    category: '文具',
+    priceRange: [2.0, 3.5],
+    stockRange: [30, 80],
+    minStockRange: [12, 24]
+  },
+  {
+    name: '农夫山泉550ml',
+    category: '饮料',
+    priceRange: [2.0, 3.5],
+    stockRange: [24, 60],
+    minStockRange: [10, 18]
+  },
+  {
+    name: '康师傅红烧牛肉面',
+    category: '速食',
+    priceRange: [4.0, 6.0],
+    stockRange: [16, 40],
+    minStockRange: [6, 12]
+  },
+  {
+    name: '伊利纯牛奶250ml',
+    category: '乳品',
+    priceRange: [3.0, 4.8],
+    stockRange: [20, 45],
+    minStockRange: [8, 14]
+  },
+  {
+    name: '晨光A5软抄本',
+    category: '文具',
+    priceRange: [4.0, 6.5],
+    stockRange: [20, 50],
+    minStockRange: [8, 15]
+  },
+  {
+    name: '德芙丝滑巧克力',
+    category: '零食',
+    priceRange: [6.0, 9.5],
+    stockRange: [12, 36],
+    minStockRange: [6, 12]
+  }
 ]
 
 const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-const randomPrice = (min: number, max: number) => Number((Math.random() * (max - min) + min).toFixed(2))
+const randomPrice = (min: number, max: number) =>
+  Number((Math.random() * (max - min) + min).toFixed(2))
 
 const buildSku = (index: number, used: Set<string>) => {
   let sku = ''
@@ -37,7 +86,14 @@ const buildSku = (index: number, used: Set<string>) => {
 
 const getYesterdayAt = (hour: number, minute: number) => {
   const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, hour, minute, randomInt(0, 59))
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 1,
+    hour,
+    minute,
+    randomInt(0, 59)
+  )
 }
 
 const buildOrderNo = (prefix: string, idx: number) => {
@@ -103,7 +159,9 @@ async function main() {
       continue
     }
 
-    const totalAmount = Number(items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2))
+    const totalAmount = Number(
+      items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
+    )
 
     await prisma.$transaction(async (tx) => {
       const order = await tx.order.create({

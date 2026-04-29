@@ -144,7 +144,9 @@ onUnmounted(() => {
 
     <!-- 筛选栏 -->
     <div class="flex flex-wrap items-end gap-3">
-      <label class="flex flex-1 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2">
+      <label
+        class="flex flex-1 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2"
+      >
         <Search class="h-4 w-4 text-slate-400" />
         <input
           v-model="search"
@@ -231,7 +233,9 @@ onUnmounted(() => {
             </span>
           </div>
           <div class="flex items-center gap-3">
-            <span class="text-sm font-semibold text-slate-900">{{ formatPrice(order.totalAmount) }}</span>
+            <span class="text-sm font-semibold text-slate-900">{{
+              formatPrice(order.totalAmount)
+            }}</span>
             <component
               :is="expandedOrderId === order.id ? ChevronUp : ChevronDown"
               class="h-4 w-4 text-slate-400"
@@ -264,7 +268,10 @@ onUnmounted(() => {
             </tbody>
           </table>
           <!-- 退款按钮 -->
-          <div v-if="order.status === 'COMPLETED'" class="mt-3 flex justify-end border-t border-slate-100 pt-3">
+          <div
+            v-if="order.status === 'COMPLETED'"
+            class="mt-3 flex justify-end border-t border-slate-100 pt-3"
+          >
             <button
               type="button"
               class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"

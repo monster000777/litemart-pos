@@ -30,12 +30,14 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig(event)
     const minimaxApiKey = String(config.minimaxApiKey || '').trim()
     const minimaxModel = config.minimaxModel || 'abab6.5-chat'
-    const minimaxApiUrl = config.minimaxApiUrl || 'https://api.minimax.chat/v1/text/chatcompletion_pro'
+    const minimaxApiUrl =
+      config.minimaxApiUrl || 'https://api.minimax.chat/v1/text/chatcompletion_pro'
 
     if (!minimaxApiKey) {
       // 本地兜底回复，告知缺少配置
       return {
-        reply: '系统未配置 MiniMax API Key，无法进行数据分析。请在环境变量中配置 `NUXT_MINIMAX_API_KEY`。'
+        reply:
+          '系统未配置 MiniMax API Key，无法进行数据分析。请在环境变量中配置 `NUXT_MINIMAX_API_KEY`。'
       }
     }
 
@@ -52,9 +54,9 @@ export default defineEventHandler(async (event) => {
       },
       select: { createdAt: true, status: true, totalAmount: true }
     })
-    
-    const hourlyTraffic: Record<number, { orders: number, revenue: number }> = {}
-    todayOrders.forEach(o => {
+
+    const hourlyTraffic: Record<number, { orders: number; revenue: number }> = {}
+    todayOrders.forEach((o) => {
       const h = o.createdAt.getHours()
       if (!hourlyTraffic[h]) hourlyTraffic[h] = { orders: 0, revenue: 0 }
       hourlyTraffic[h].orders += 1
@@ -75,12 +77,16 @@ export default defineEventHandler(async (event) => {
         product: { select: { name: true } }
       }
     })
-    
-    const productStats: Record<string, { soldQuantity: number; soldAmount: number; refundedQuantity: number }> = {}
-    recentItems.forEach(item => {
+
+    const productStats: Record<
+      string,
+      { soldQuantity: number; soldAmount: number; refundedQuantity: number }
+    > = {}
+    recentItems.forEach((item) => {
       const name = item.product.name
-      if (!productStats[name]) productStats[name] = { soldQuantity: 0, soldAmount: 0, refundedQuantity: 0 }
-      
+      if (!productStats[name])
+        productStats[name] = { soldQuantity: 0, soldAmount: 0, refundedQuantity: 0 }
+
       if (item.order.status === ORDER_STATUS.COMPLETED) {
         productStats[name].soldQuantity += item.quantity
         productStats[name].soldAmount += item.quantity * Number(item.unitPrice)
@@ -93,7 +99,7 @@ export default defineEventHandler(async (event) => {
     const allProducts = await prisma.product.findMany({
       select: { name: true, stock: true, minStock: true }
     })
-    const lowStockProducts = allProducts.filter(p => p.stock <= p.minStock)
+    const lowStockProducts = allProducts.filter((p) => p.stock <= p.minStock)
 
     // 1.4 近期操作日志
     const recentLogs = await prisma.auditLog.findMany({
@@ -111,7 +117,10 @@ export default defineEventHandler(async (event) => {
       recentAuditLogs: recentLogs
     }
 
-    const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('###CONTEXT###', JSON.stringify(contextData))
+    const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace(
+      '###CONTEXT###',
+      JSON.stringify(contextData)
+    )
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -122,27 +131,34 @@ export default defineEventHandler(async (event) => {
       { role: 'user', content: question }
     ]
 
-    const candidateUrls = Array.from(new Set([
-      minimaxApiUrl,
-      'https://api.minimax.chat/v1/text/chatcompletion_pro',
-      'https://api.minimax.chat/v1/text/chatcompletion_v2'
-    ].filter(Boolean)))
+    const candidateUrls = Array.from(
+      new Set(
+        [
+          minimaxApiUrl,
+          'https://api.minimax.chat/v1/text/chatcompletion_pro',
+          'https://api.minimax.chat/v1/text/chatcompletion_v2'
+        ].filter(Boolean)
+      )
+    )
 
-    const callOpenAI = (url: string) => $fetch<any>(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${minimaxApiKey}` },
-      body: { model: minimaxModel, messages, temperature: 0.1, max_tokens: 800 }
-    })
+    const callOpenAI = (url: string) =>
+      $fetch<any>(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${minimaxApiKey}` },
+        body: { model: minimaxModel, messages, temperature: 0.1, max_tokens: 800 }
+      })
 
     const callLegacy = (url: string, useArray: boolean) => {
-      const legacyMessages = history.map((m: any) => ({
-        sender_type: m.role === 'user' ? 'USER' : 'BOT',
-        sender_name: m.role === 'user' ? 'user' : 'bot',
-        text: m.content
-      })).concat({ sender_type: 'USER', sender_name: 'user', text: question })
+      const legacyMessages = history
+        .map((m: any) => ({
+          sender_type: m.role === 'user' ? 'USER' : 'BOT',
+          sender_name: m.role === 'user' ? 'user' : 'bot',
+          text: m.content
+        }))
+        .concat({ sender_type: 'USER', sender_name: 'user', text: question })
 
       const botSettingObj = { bot_name: 'bot', content: systemPrompt }
-      
+
       return $fetch<any>(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${minimaxApiKey}` },
@@ -160,10 +176,12 @@ export default defineEventHandler(async (event) => {
       if (res?.base_resp && res.base_resp.status_code !== 0) {
         throw new Error(res.base_resp.status_msg || 'MiniMax API 接口异常')
       }
-      return res?.choices?.[0]?.message?.content?.trim() 
-          || res?.reply?.trim() 
-          || res?.output_text?.trim() 
-          || res?.output?.text?.trim()
+      return (
+        res?.choices?.[0]?.message?.content?.trim() ||
+        res?.reply?.trim() ||
+        res?.output_text?.trim() ||
+        res?.output?.text?.trim()
+      )
     }
 
     let reply = ''
@@ -171,15 +189,20 @@ export default defineEventHandler(async (event) => {
 
     for (const url of candidateUrls) {
       if (reply) break
-      
+
       try {
         const res = await callOpenAI(url)
         reply = parseResponse(res)
         if (reply) break
       } catch (error: any) {
         lastError = error
-        const msg = (error?.data?.base_resp?.status_msg || error?.data?.message || error?.message || '').toLowerCase()
-        
+        const msg = (
+          error?.data?.base_resp?.status_msg ||
+          error?.data?.message ||
+          error?.message ||
+          ''
+        ).toLowerCase()
+
         if (msg.includes('invalid params') && msg.includes('bot_setting')) {
           try {
             const resLegacyArray = await callLegacy(url, true)
@@ -200,24 +223,22 @@ export default defineEventHandler(async (event) => {
     }
 
     if (!reply) {
-      const errMessage = lastError?.data?.base_resp?.status_msg 
-        || lastError?.data?.message 
-        || lastError?.message 
-        || '解析大模型回复失败'
+      const errMessage =
+        lastError?.data?.base_resp?.status_msg ||
+        lastError?.data?.message ||
+        lastError?.message ||
+        '解析大模型回复失败'
       throw createError({ statusCode: 500, message: errMessage })
     }
 
     return { reply }
-
   } catch (error: any) {
     console.error('Chat BI Error:', error)
     if (error instanceof H3Error) throw error
-    
-    const errMessage = error?.data?.base_resp?.status_msg 
-      || error?.data?.message 
-      || error?.message 
-      || '对话处理失败'
-      
+
+    const errMessage =
+      error?.data?.base_resp?.status_msg || error?.data?.message || error?.message || '对话处理失败'
+
     throw createError({ statusCode: 500, message: errMessage })
   }
 })
