@@ -74,9 +74,20 @@ const logout = async () => {
   <div class="min-h-screen bg-zinc-50 text-slate-700 antialiased [font-family:'Inter',sans-serif]">
     <aside class="fixed inset-y-0 left-0 z-20 w-64 border-r border-slate-100 bg-zinc-50">
       <div class="flex h-full flex-col px-4 py-6">
-        <div class="rounded-xl border border-slate-100 bg-white px-4 py-3">
-          <p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">LiteMart POS</p>
-          <p class="mt-1 text-sm font-semibold text-slate-900">Desktop Workspace</p>
+        <div class="mb-4 flex items-center gap-3 px-2">
+          <div
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm"
+          >
+            <ShoppingCart class="h-5 w-5" />
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[15px] font-bold tracking-tight text-slate-900 leading-tight"
+              >LiteMart POS</span
+            >
+            <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5"
+              >Workspace</span
+            >
+          </div>
         </div>
 
         <nav class="mt-6 space-y-1.5">
@@ -119,8 +130,9 @@ const logout = async () => {
 
     <div class="pl-64 flex flex-col min-h-screen">
       <header class="sticky top-0 z-10 border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
-        <div class="flex h-16 w-full items-center px-8">
-          <h1 class="text-sm font-medium text-slate-900">LiteMart POS</h1>
+        <div class="flex h-16 w-full items-center gap-2 px-8">
+          <ShoppingCart class="h-4 w-4 text-slate-900" />
+          <h1 class="text-sm font-semibold tracking-tight text-slate-900">LiteMart POS</h1>
         </div>
       </header>
 
