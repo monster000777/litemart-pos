@@ -1,0 +1,170 @@
+# LiteMart POS 项目完整性审查报告
+
+> 生成时间：2026/04/29
+> 审查范围：代码质量、安全、数据完整性、用户体验、业务逻辑
+
+---
+
+## 一、项目概述
+
+| 指标 | 数值 |
+|------|------|
+| 源文件数量 | ~70 个 |
+| 代码总量 | ~7,166 行 |
+| 技术栈 | Nuxt 4 + Vue 3 + TypeScript + Nitro + Prisma + SQLite |
+| 数据库 | SQLite（`prisma/dev.db`） |
+| AI 集成 | MiniMax API |
+
+### 现有模块
+
+| 模块 | 路由 | 状态 |
+|------|------|------|
+| 收银台 | `/` | ✅ 完整 |
+| 实时数据大屏 | `/dashboard` | ✅ 完整 |
+| 销售分析 | `/insights` | ✅ 完整 |
+| 库存管理 | `/inventory` | ✅ 完整 |
+| 订单历史 | `/orders` | ✅ 完整 |
+| AI 助手 | `/ai` | ✅ 完整 |
+| 审计日志 | `/logs` | ✅ 完整 |
+| PIN 认证 | `/login` | ✅ 完整 |
+
+---
+
+## 二、问题汇总
+
+共发现 **33 个问题**，其中严重 4 个，中等 9 个，轻微 10 个，建议 10 个。
+
+### 2.1 严重问题（Critical）—— 需立即修复
+
+#### 🔴 C-1：认证 Session 永远返回已登录
+
+- **文件**：`server/api/auth/session.get.ts`
+- **问题**：`/api/auth/session` 接口无条件返回 `{ authenticated: true }`，客户端 auth 中间件依赖此接口判断登录状态，导致任何未登录用户都能绕过认证访问受保护页面。
+- **修复方向**：在接口中真实验证 Session Token，或将其从 `PUBLIC_AUTH_PATHS` 列表中移除。
+
+#### 🔴 C-2：库存并发扣减可能导致负数
+
+- **文件**：`server/services/order-service.ts:130-158`
+- **问题**：库存检查（`product.stock < item.quantity`）与库存扣减（`updateMany` with `stock: { decrement }`）不在同一原子操作内。两个并发结账请求在库存临界值时可能同时通过检查，导致库存变为负数。
+- **修复方向**：使用原生 SQL 的原子扣减语句：
+  ```sql
+  UPDATE Product SET stock = stock - ? WHERE id = ? AND stock >= ?
+  ```
+  或在 Prisma 事务内使用 `SELECT ... FOR UPDATE`（SQLite 不支持行级锁，需改造架构）。
+
+#### 🔴 C-3：AI 对话无输入长度限制
+
+- **文件**：`server/api/insights/chat.post.ts:26-28`
+- **问题**：仅校验问题不为空，未限制长度。用户可发送超大文本（MB 级），耗尽服务器内存或耗光 API 配额。
+- **修复方向**：添加长度校验 `if (question.length > 2000) throw createError(...)`。
+
+#### 🔴 C-4：`marked.parse` 异步模式绕过 XSS 过滤
+
+- **文件**：`app/pages/ai.vue:107-115`
+- **问题**：`marked.parse` 在输入较大时返回 Promise，导致 `rawHtml` 为 Promise 对象而非字符串，DOMPurify 过滤被绕过。
+- **修复方向**：使用 `await marked.parse(...)` 确保返回值为字符串后再进行净化。
+
+---
+
+### 2.2 中等问题（Medium）—— 应该修复
+
+| # | 问题 | 文件 | 说明 |
+|---|------|------|------|
+| M-1 | 库存并发竞争时用户体验差 | `order-service.ts` | 409 冲突错误消息不够明确，用户不知道是并发冲突 |
+| M-2 | 商品图片 URL 未校验危险协议 | `product-service.ts` | 未过滤 `javascript:` / `data:` URL，存在 XSS 风险 |
+| M-3 | Chat history 无长度限制 | `chat.post.ts:24` | 用户可发送大量历史消息，撑大请求体和 API 消耗 |
+| M-4 | 产品列表无分页 | `products/index.get.ts` | 大数据量时存在内存和性能风险 |
+| M-5 | 产品编辑无乐观锁 | `products/[id].patch.ts` | 并发编辑可能丢数据 |
+| M-6 | 退款 stock restore 非原子 | `refund.post.ts:56-78` | 循环中逐条 update，部分失败时前面已恢复的库存无法回滚 |
+| M-7 | 购物车数量不校验库存上限 | `app/stores/useCart.ts:49` | 用户可加入超出库存的数量，结账时才被拒绝，体验差 |
+| M-8 | 补货建议基于旧数据 | `inventory.vue:165-177` | 页面加载后未重新拉取库存，其他人的操作不感知 |
+| M-9 | AI 总结刷新无专门 loading 态 | `insights.vue` | "重新生成"按钮缺少独立的加载反馈 |
+
+---
+
+### 2.3 轻微问题（Minor）—— 可后续改进
+
+| # | 问题 | 文件 |
+|---|------|------|
+| mi-1 | CSV 导出分隔符混用 `\t,` | `orders.vue:88-90` |
+| mi-2 | DTO 类型不完整（缺少 `status`/`createdAt`） | `types/order.ts` |
+| mi-3 | 导出内部函数 `parseProductImage` | `product-service.ts` |
+| mi-4 | 缺少 `/api/health` 健康检查端点 | - |
+| mi-5 | 批量操作使用 `window.confirm` 体验差 | `inventory.vue` |
+| mi-6 | 缺少请求追踪 ID（Request ID） | - |
+| mi-7 | 订单使用 offset 分页，大数据量效率低 | `orders/index.get.ts` |
+| mi-8 | `history` 数组无类型约束 | `chat.post.ts:24` |
+| mi-9 | Checkout 网络中断后无法恢复 | - |
+| mi-10 | 商品编辑错误消息过于笼统 | `products/[id].patch.ts` |
+
+---
+
+## 三、架构与安全建议
+
+### 3.1 数据库层
+
+- **SQLite 并发限制**：当前为文件锁模式，多终端写入会产生冲突。如需多端部署，建议迁移至 PostgreSQL。
+- **库存原子操作**：使用数据库级别的原子扣减，而非应用层的 check-then-update。
+- **事务边界**：退款操作的库存恢复应与订单状态变更放在同一事务内。
+
+### 3.2 API 层
+
+- **幂等性**：结账接口应支持 Idempotency Key，防止网络重试导致重复扣库存。
+- **分页**：产品和订单列表强制分页，建议使用 Cursor 分页替代 Offset 分页。
+- **限流**：当前内存限流器在多实例部署时不共享状态，如扩展需引入 Redis。
+
+### 3.3 前端层
+
+- **乐观锁**：产品编辑加入 `version` 字段或 `updatedAt` 条件更新。
+- **输入校验**：AI 问题长度、history 条数、购物车数量上限均需前端+后端双重校验。
+- **XSS 防护**：所有渲染用户输入的地方（商品图片URL、AI回复、商品名称）均需净化处理。
+
+### 3.4 运维建议
+
+- 添加 `/api/health` 端点用于健康检查和负载均衡探测。
+- 添加 Request ID 便于生产环境问题追踪。
+- 敏感配置（API Key）建议从环境变量迁移至密钥管理服务（生产环境）。
+
+---
+
+## 四、可扩展功能方向
+
+| 优先级 | 功能 | 说明 |
+|--------|------|------|
+| ⭐⭐⭐ | 智能补货推荐 Agent | 基于销售速度预测断货时间，生成采购建议 |
+| ⭐⭐⭐ | 需求预测 Agent | 移动平均预测下周/下月销量和收入 |
+| ⭐⭐ | 异常预警 Agent | 监控退款率突增、客单价异常 |
+| ⭐⭐ | 会员管理系统 | 升级 customerTail 为真实会员体系（积分、等级） |
+| ⭐⭐ | 供应商 & 采购单 | 完整库存进销存闭环 |
+| ⭐⭐ | 多端部署（PostgreSQL） | 解决 SQLite 并发写入瓶颈 |
+| ⭐ | 多模态 AI（图片识别） | 拍照识别商品自动填信息 |
+| ⭐ | 自动化报告邮件推送 | 定时发送 PDF 报告 |
+| ⭐ | 权限 & 角色系统 | RBAC 多角色支持 |
+
+---
+
+## 五、修复优先级建议
+
+```
+第一优先级（安全 & 数据完整性）
+├── C-1  认证绕过漏洞          → 立即修复
+├── C-2  库存并发负数问题      → 立即修复
+├── C-3  AI 输入长度限制       → 立即修复
+└── C-4  XSS 过滤绕过          → 立即修复
+
+第二优先级（可靠性）
+├── M-2  图片 URL 安全校验
+├── M-5  产品编辑乐观锁
+├── M-6  退款事务原子性
+└── M-3  Chat history 长度限制
+
+第三优先级（性能 & 体验）
+├── M-4  产品列表分页
+├── M-7  购物车库存上限校验
+├── M-8  补货数据重新拉取
+└── mi-4  健康检查端点
+```
+
+---
+
+*本报告由 Claude Code 自动生成，仅供项目参考*
