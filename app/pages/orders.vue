@@ -87,7 +87,7 @@ const exportCsv = () => {
   const header = '订单号,状态,总金额,客户尾号,下单时间,商品明细'
   const rows = orders.value.map((o) => {
     const items = o.items.map((i) => `${i.product.name}×${i.quantity}`).join('; ')
-    return `${o.orderNo},${statusLabel(o.status)},${o.totalAmount},${o.customerTail || '-'},${formatDate(o.createdAt)},"${items}"`
+    return `${o.orderNo}\t,${statusLabel(o.status)},${o.totalAmount},${o.customerTail || '-'},${formatDate(o.createdAt)}\t,"${items}"`
   })
   const csv = '\uFEFF' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })

@@ -143,6 +143,11 @@ const removeItem = (id: string) => {
   cartStore.removeItem(id)
 }
 
+const clearAllItems = () => {
+  clearFeedback()
+  cartStore.clearCart()
+}
+
 const checkout = async () => {
   if (!canCheckout.value) {
     return
@@ -435,14 +440,25 @@ const reprintReceipt = () => {
             <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Receipt</p>
             <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">结算预览</h2>
           </div>
-          <button
-            type="button"
-            class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
-            title="重打上一单小票"
-            @click="reprintReceipt"
-          >
-            <Printer class="h-4 w-4" />
-          </button>
+          <div class="flex gap-2">
+            <button
+              v-if="cart.length > 0"
+              type="button"
+              class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-rose-600"
+              title="清空商品"
+              @click="clearAllItems"
+            >
+              <Trash2 class="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+              title="重打上一单小票"
+              @click="reprintReceipt"
+            >
+              <Printer class="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div ref="feedbackRef" class="mt-4 space-y-2">
