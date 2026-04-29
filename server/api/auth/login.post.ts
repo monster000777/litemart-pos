@@ -2,6 +2,9 @@ import { H3Error } from 'h3'
 import { createSessionToken, hashPin, isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
+import { getClientIp } from '~~/server/utils/request'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 
 type LoginBody = {
   pin?: string
@@ -17,6 +20,19 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Bad Request',
         message: 'PIN 码格式错误'
+      })
+    }
+
+    // 速率限制检查
+    const limiter = getPinRateLimiter()
+    const clientIp = getClientIp(event)
+    const lockSeconds = limiter.check(clientIp)
+    if (lockSeconds !== null) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: 'Too Many Requests',
+        message: `操作过于频繁，请 ${lockSeconds} 秒后重试`,
+        data: { lockSeconds }
       })
     }
 
@@ -57,12 +73,28 @@ export default defineEventHandler(async (event) => {
 
     const matched = await verifyPin(pin, authConfig.adminPin)
     if (!matched) {
+      // 先记录审计日志，确保即使触发锁定也能记录本次失败
+      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, 'PIN 码错误', clientIp)
+      // 记录失败尝试
+      const newLockSeconds = limiter.recordFailure(clientIp)
+      if (newLockSeconds !== null) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: 'Too Many Requests',
+          message: `连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
+          data: { lockSeconds: newLockSeconds }
+        })
+      }
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
         message: 'PIN 码错误'
       })
     }
+
+    // 登录成功，清除限制记录
+    limiter.reset(clientIp)
+    await writeAuditLog(AUDIT_ACTIONS.LOGIN, '登录成功', clientIp)
 
     const token = createSessionToken(authSecret)
     setCookie(event, AUTH_COOKIE_NAME, token, {

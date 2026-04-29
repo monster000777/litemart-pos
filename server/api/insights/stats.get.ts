@@ -25,13 +25,13 @@ export default defineEventHandler(async () => {
 
   const rows = await prisma.$queryRaw<DailyRow[]>`
     SELECT
-      strftime('%Y-%m-%d', "createdAt") AS day,
+      strftime('%Y-%m-%d', "createdAt", 'localtime') AS day,
       COALESCE(SUM("totalAmount"), 0) AS amount
     FROM "Order"
     WHERE "status" = ${ORDER_STATUS.COMPLETED}
       AND "createdAt" >= ${startDate}
       AND "createdAt" < ${endDate}
-    GROUP BY strftime('%Y-%m-%d', "createdAt")
+    GROUP BY strftime('%Y-%m-%d', "createdAt", 'localtime')
     ORDER BY day ASC
   `
 
@@ -51,7 +51,34 @@ export default defineEventHandler(async () => {
     }
   })
 
+  const topItems = await prisma.orderItem.groupBy({
+    by: ['productId'],
+    _sum: { quantity: true },
+    where: {
+      order: {
+        status: ORDER_STATUS.COMPLETED,
+        createdAt: { gte: startDate, lt: endDate }
+      }
+    },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: 5
+  })
+
+  const productIds = topItems.map(tp => tp.productId)
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true }
+  })
+  
+  const productMap = new Map(products.map(p => [p.id, p.name]))
+
+  const topProducts = topItems.map(tp => ({
+    name: productMap.get(tp.productId) || '未知商品',
+    quantity: tp._sum.quantity || 0
+  }))
+
   return {
-    trend
+    trend,
+    topProducts
   }
 })

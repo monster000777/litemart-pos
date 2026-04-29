@@ -56,13 +56,14 @@ app/
   layouts/          # SaaS 全局布局
   pages/            # Checkout / Inventory / Insights 页面
   components/ui/    # UI 组件（含 Table）
+  composables/      # 跨页面的组合式函数（API 错误处理、格式化等）
   stores/           # Pinia 状态管理（含购物清单持久化）
   types/            # 前端 DTO 类型定义
 server/
-  api/              # 业务 API（auth/products/orders/insights/ai-summary）
+  api/              # 业务 API（auth/products/orders/insights/audit-logs）
   lib/              # 基础设施（Prisma 单例）
   middleware/       # 服务端鉴权中间件
-  services/         # 后端领域服务（订单、商品）
+  services/         # 后端领域服务（核心业务逻辑）
 prisma/
   schema.prisma     # 数据模型
   migrations/       # 迁移记录

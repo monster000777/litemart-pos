@@ -1,10 +1,18 @@
 import { H3Error } from 'h3'
 import { createOrderAtomic, type CreateOrderInput } from '~~/server/services/order-service'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { getClientIp } from '~~/server/utils/request'
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<CreateOrderInput>(event)
     const result = await createOrderAtomic(body)
+
+    await writeAuditLog(
+      AUDIT_ACTIONS.CHECKOUT,
+      `订单 ${result.orderNo}，金额 ¥${result.totalAmount.toFixed(2)}`,
+      getClientIp(event)
+    )
 
     return {
       id: result.id,

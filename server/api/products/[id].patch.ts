@@ -2,6 +2,8 @@ import { H3Error } from 'h3'
 import { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/lib/prisma'
 import { parseProductImage, toProductResponse } from '~~/server/services/product-service'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { getClientIp } from '~~/server/utils/request'
 
 type UpdateProductBody = {
   name?: string
@@ -85,6 +87,12 @@ export default defineEventHandler(async (event) => {
       where: { id },
       data
     })
+
+    await writeAuditLog(
+      AUDIT_ACTIONS.PRODUCT_UPDATE,
+      `更新商品「${product.name}」(${product.sku})`,
+      getClientIp(event)
+    )
 
     return toProductResponse(product)
   } catch (error) {

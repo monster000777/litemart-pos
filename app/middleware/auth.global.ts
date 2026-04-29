@@ -24,6 +24,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const authenticated = await verifySession()
   if (!authenticated) {
-    return navigateTo('/login')
+    // 保存当前路由，登录后回跳
+    const redirect = to.fullPath !== '/' ? to.fullPath : undefined
+    return navigateTo({
+      path: '/login',
+      query: redirect ? { redirect } : undefined
+    })
   }
 })

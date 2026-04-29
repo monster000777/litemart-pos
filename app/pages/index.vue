@@ -1,17 +1,32 @@
 <script setup lang="ts">
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
-import { ImagePlus, LoaderCircle, Minus, PackageSearch, Plus, Search, Trash2 } from 'lucide-vue-next'
+import { ImagePlus, LoaderCircle, Minus, PackageSearch, Plus, Search, Trash2, Printer } from 'lucide-vue-next'
 import Skeleton from '~/components/ui/skeleton/Skeleton.vue'
 import type { CheckoutResponseDto } from '~/types/order'
 import type { ProductDto } from '~/types/product'
+import { onMounted, onUnmounted } from 'vue'
 
 const keyword = ref('')
+const selectedCategory = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 const isSubmitting = ref(false)
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const cartStore = useCartStore()
+
+// 存储上一单记录，用于打印小票
+const lastOrder = ref<{
+  orderNo: string
+  items: Array<any>
+  totalAmount: number
+  customerTail?: string
+  time: string
+} | null>(null)
+
+// 扫码枪缓冲区
+const barcodeBuffer = ref('')
+let barcodeTimeout: ReturnType<typeof setTimeout> | null = null
 
 const { data, pending, error, refresh } = await useAsyncData('products', () =>
   $fetch<ProductDto[]>('/api/products')
@@ -28,14 +43,22 @@ const customerTail = computed({
   set: (value: string) => cartStore.setCustomerTail(value)
 })
 
+const categories = computed(() => {
+  const set = new Set(products.value.map((p) => p.category))
+  return Array.from(set).sort()
+})
+
 const filteredProducts = computed(() => {
-  const q = keyword.value.trim().toLowerCase()
-  if (!q) {
-    return products.value
+  let list = products.value
+  const cat = selectedCategory.value
+  if (cat) {
+    list = list.filter((p) => p.category === cat)
   }
-  return products.value.filter((product) => {
-    return product.name.toLowerCase().includes(q) || product.sku.toLowerCase().includes(q)
-  })
+  const q = keyword.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+  }
+  return list
 })
 
 const totalAmount = computed(() =>
@@ -130,12 +153,23 @@ const checkout = async () => {
     })
 
     successMessage.value = `核销成功，订单号 ${result.orderNo}`
+    
+    // 保存记录以供打印
+    lastOrder.value = {
+      orderNo: result.orderNo,
+      items: JSON.parse(JSON.stringify(cartStore.items)),
+      totalAmount: totalAmount.value,
+      customerTail: customerTail.value.length === 4 ? customerTail.value : undefined,
+      time: new Date().toLocaleString()
+    }
+
     toast({
       title: '核销成功，已自动更新库存',
       variant: 'success',
       duration: 3000
     })
     cartStore.clearCart()
+    clearNuxtData() // 清空全局缓存，确保切换到其他页面时能拉取最新数据
     await refresh()
   } catch (e) {
     const message = getApiErrorMessage(e, '核销失败，请稍后重试')
@@ -168,12 +202,75 @@ watch(
   { immediate: true }
 )
 
-const formatPrice = (value: number) => `¥${value.toFixed(2)}`
+const { formatPrice } = useFormat()
+
+// --- 扫码枪逻辑 ---
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && barcodeBuffer.value.length >= 3) {
+    const sku = barcodeBuffer.value
+    const product = products.value.find(p => p.sku === sku)
+    
+    if (product) {
+      addToCart(product)
+      toast({
+        title: `扫码成功：已添加 ${product.name}`,
+        variant: 'success',
+        duration: 2000
+      })
+      // 如果焦点在搜索框内，清空错误输入的条码
+      if (document.activeElement?.tagName === 'INPUT' && document.activeElement === document.querySelector('input[type="text"]')) {
+        keyword.value = keyword.value.replace(sku, '')
+      }
+    } else {
+      toast({
+        title: `未找到 SKU 为 ${sku} 的商品`,
+        variant: 'error',
+        duration: 3000
+      })
+    }
+    barcodeBuffer.value = ''
+    return
+  }
+  
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    barcodeBuffer.value += e.key
+    if (barcodeTimeout) clearTimeout(barcodeTimeout)
+    // 扫码枪输入间隔通常小于 50ms，超时则重置（过滤普通手敲键盘）
+    barcodeTimeout = setTimeout(() => {
+      barcodeBuffer.value = ''
+    }, 50)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+  if (barcodeTimeout) {
+    clearTimeout(barcodeTimeout)
+    barcodeTimeout = null
+  }
+})
+
+// 主动触发重打最后一单小票
+const reprintReceipt = () => {
+  if (lastOrder.value) {
+    window.print()
+  } else {
+    toast({
+      title: '暂无上一单记录',
+      variant: 'error',
+      duration: 2000
+    })
+  }
+}
 </script>
 
 <template>
-  <section class="grid grid-cols-3 gap-8">
-    <div class="col-span-2 space-y-6">
+  <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2 space-y-6">
       <div class="rounded-2xl border border-white/60 bg-white/70 p-4 backdrop-blur-xl">
         <label class="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-4">
           <Search class="h-5 w-5 text-slate-400" />
@@ -184,6 +281,36 @@ const formatPrice = (value: number) => `¥${value.toFixed(2)}`
             class="w-full bg-transparent text-lg text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
         </label>
+      </div>
+
+      <!-- 分类标签栏 -->
+      <div v-if="categories.length > 1" class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="rounded-full border px-3 py-1.5 text-xs font-medium transition"
+          :class="
+            selectedCategory === ''
+              ? 'border-slate-900 bg-slate-900 text-white'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+          "
+          @click="selectedCategory = ''"
+        >
+          全部
+        </button>
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          type="button"
+          class="rounded-full border px-3 py-1.5 text-xs font-medium transition"
+          :class="
+            selectedCategory === cat
+              ? 'border-slate-900 bg-slate-900 text-white'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+          "
+          @click="selectedCategory = cat"
+        >
+          {{ cat }}
+        </button>
       </div>
 
       <div
@@ -273,12 +400,24 @@ const formatPrice = (value: number) => `¥${value.toFixed(2)}`
       </div>
     </div>
 
-    <aside class="col-span-1">
+    <aside class="lg:col-span-1">
       <div
         class="sticky top-24 rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
       >
-        <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Receipt</p>
-        <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">结算预览</h2>
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Receipt</p>
+            <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">结算预览</h2>
+          </div>
+          <button 
+            type="button" 
+            class="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-900" 
+            title="重打上一单小票"
+            @click="reprintReceipt"
+          >
+            <Printer class="h-4 w-4" />
+          </button>
+        </div>
 
         <div ref="feedbackRef" class="mt-4 space-y-2">
           <p
@@ -383,5 +522,34 @@ const formatPrice = (value: number) => `¥${value.toFixed(2)}`
         </button>
       </div>
     </aside>
+
+    <!-- 打印专用的小票结构 -->
+    <div v-if="lastOrder" class="print-receipt hidden text-black p-4 text-sm font-sans w-[300px]">
+      <div class="text-center font-bold text-xl mb-4 tracking-widest">LiteMart POS</div>
+      <div class="mb-2 text-xs">订单号：{{ lastOrder.orderNo }}</div>
+      <div class="mb-2 text-xs">时间：{{ lastOrder.time }}</div>
+      <div v-if="lastOrder.customerTail" class="mb-4 text-xs">客户(尾号)：{{ lastOrder.customerTail }}</div>
+      
+      <div class="border-t-2 border-b-2 border-black border-dashed py-3 mb-3">
+        <div class="flex justify-between font-bold text-xs mb-2">
+          <div class="flex-1">商品</div>
+          <div class="w-10 text-center">数量</div>
+          <div class="w-16 text-right">小计</div>
+        </div>
+        <div v-for="item in lastOrder.items" :key="item.id" class="flex justify-between mb-2 text-xs">
+          <div class="flex-1 pr-2 break-all">{{ item.name }}</div>
+          <div class="w-10 text-center">x{{ item.quantity }}</div>
+          <div class="w-16 text-right">{{ formatPrice(item.price * item.quantity) }}</div>
+        </div>
+      </div>
+      
+      <div class="flex justify-between font-bold text-base mt-2">
+        <span>合计金额</span>
+        <span>{{ formatPrice(lastOrder.totalAmount) }}</span>
+      </div>
+      <div class="text-center mt-10 text-xs text-gray-500 pb-8">
+        谢谢惠顾，欢迎再次光临
+      </div>
+    </div>
   </section>
 </template>

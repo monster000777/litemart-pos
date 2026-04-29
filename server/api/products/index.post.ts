@@ -2,6 +2,8 @@ import { H3Error } from 'h3'
 import { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/lib/prisma'
 import { parseProductImage, toProductResponse } from '~~/server/services/product-service'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { getClientIp } from '~~/server/utils/request'
 
 type CreateProductBody = {
   name?: string
@@ -51,6 +53,12 @@ export default defineEventHandler(async (event) => {
         minStock
       }
     })
+
+    await writeAuditLog(
+      AUDIT_ACTIONS.PRODUCT_CREATE,
+      `新增商品「${name}」(${sku})`,
+      getClientIp(event)
+    )
 
     return toProductResponse(product)
   } catch (error) {

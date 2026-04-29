@@ -1,6 +1,8 @@
 import { H3Error } from 'h3'
 import { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/lib/prisma'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { getClientIp } from '~~/server/utils/request'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -13,7 +15,26 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { name: true, sku: true }
+    })
+
+    if (!product) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Not Found',
+        message: '商品不存在'
+      })
+    }
+
     await prisma.product.delete({ where: { id } })
+
+    await writeAuditLog(
+      AUDIT_ACTIONS.PRODUCT_DELETE,
+      `删除商品「${product.name}」(${product.sku})`,
+      getClientIp(event)
+    )
 
     return {
       success: true,

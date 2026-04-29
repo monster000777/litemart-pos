@@ -22,3 +22,11 @@ export const createAuthConfigIfMissing = async (hashedPin: string) => {
     VALUES (${AUTH_CONFIG_ID}, ${hashedPin}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `
 }
+
+export const updateAuthConfig = async (hashedPin: string) => {
+  await prisma.$executeRaw`
+    UPDATE "Config"
+    SET "adminPin" = ${hashedPin}, "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "id" = ${AUTH_CONFIG_ID}
+  `
+}

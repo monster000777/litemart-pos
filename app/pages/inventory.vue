@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
-import { ImagePlus, LoaderCircle, Pencil, Plus, Sparkles, Trash2 } from 'lucide-vue-next'
+import { Download, ImagePlus, LoaderCircle, Pencil, Plus, Sparkles, Trash2 } from 'lucide-vue-next'
 import Sheet from '~/components/ui/sheet/Sheet.vue'
 import SheetContent from '~/components/ui/sheet/SheetContent.vue'
 import SheetDescription from '~/components/ui/sheet/SheetDescription.vue'
@@ -127,8 +127,19 @@ const uploadImage = async (event: Event) => {
 }
 
 const generateSuggestions = () => {
-  restockSuggestions.value = products.value
-    .filter((item) => item.stock <= item.minStock)
+  if (restockSuggestions.value.length > 0) {
+    // 如果已经显示，则折叠
+    restockSuggestions.value = []
+    return
+  }
+
+  const warnings = products.value.filter((item) => item.stock <= item.minStock)
+  if (warnings.length === 0) {
+    toast({ title: '当前所有商品库存充足，无需补货！', variant: 'success', duration: 3000 })
+    return
+  }
+
+  restockSuggestions.value = warnings
     .map((item) => ({
       id: item.id,
       name: item.name,
@@ -138,10 +149,59 @@ const generateSuggestions = () => {
     .sort((a, b) => b.suggestQty - a.suggestQty)
 }
 
-const formatPrice = (value: number) => `¥${value.toFixed(2)}`
+const restocking = ref(false)
+const executeRestock = async () => {
+  if (restocking.value || restockSuggestions.value.length === 0) return
+  
+  const ok = window.confirm(`确认自动为 ${restockSuggestions.value.length} 个预警商品执行补货？`)
+  if (!ok) return
+  
+  restocking.value = true
+  try {
+    await Promise.all(restockSuggestions.value.map(async (item) => {
+      const product = products.value.find(p => p.id === item.id)
+      if (product) {
+        await $fetch(`/api/products/${item.id}`, {
+          method: 'PATCH',
+          body: {
+            ...product,
+            stock: product.stock + item.suggestQty
+          }
+        })
+      }
+    }))
+    toast({ title: '批量补货成功，已入库', variant: 'success', duration: 3000 })
+    restockSuggestions.value = []
+    await refreshInventory()
+  } catch (error) {
+    toast({ title: getApiErrorMessage(error, '批量补货遭遇异常，请稍后重试'), variant: 'error', duration: 3000 })
+  } finally {
+    restocking.value = false
+  }
+}
+
+const { formatPrice } = useFormat()
 
 const refreshInventory = async () => {
+  clearNuxtData() // 清空全局缓存
   await refreshNuxtData('inventory-products')
+}
+
+const exportInventoryCsv = () => {
+  if (!products.value.length) return
+  const header = '商品名称,SKU,分类,单价,当前库存,预警线,状态'
+  const rows = products.value.map((p) => {
+    const status = p.stock <= p.minStock ? '预警' : '正常'
+    return `${p.name},${p.sku},${p.category},${p.price},${p.stock},${p.minStock},${status}`
+  })
+  const csv = '\uFEFF' + [header, ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `inventory_${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 const submitForm = async () => {
@@ -232,6 +292,15 @@ const deleteProduct = async (product: ProductDto) => {
       <div class="flex items-center gap-2">
         <button
           type="button"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-white hover:text-slate-900 disabled:opacity-50"
+          :disabled="!products.length"
+          @click="exportInventoryCsv"
+        >
+          <Download class="h-4 w-4" />
+          导出 CSV
+        </button>
+        <button
+          type="button"
           class="inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-zinc-50 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-white hover:text-slate-900"
           @click="generateSuggestions"
         >
@@ -265,6 +334,18 @@ const deleteProduct = async (product: ProductDto) => {
     </div>
 
     <div ref="suggestionRef" class="space-y-3">
+      <div v-if="restockSuggestions.length > 0" class="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3">
+        <span class="text-sm font-medium text-indigo-700">共发现 {{ restockSuggestions.length }} 个需要补货的商品。</span>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          :disabled="restocking"
+          @click="executeRestock"
+        >
+          <LoaderCircle v-if="restocking" class="mr-1.5 h-3.5 w-3.5 animate-spin" />
+          {{ restocking ? '补货执行中...' : '一键执行补货' }}
+        </button>
+      </div>
       <div
         v-for="item in restockSuggestions"
         :key="item.id"

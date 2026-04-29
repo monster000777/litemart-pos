@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { BarChart3, Boxes, LogOut, ShoppingCart } from 'lucide-vue-next'
+import { BarChart3, Boxes, ClipboardList, LogOut, ScrollText, ShoppingCart, MonitorPlay, Bot } from 'lucide-vue-next'
 
 const route = useRoute()
 const loggingOut = ref(false)
 const authState = useState<boolean | null>('auth:verified', () => null)
+const alertCount = ref(0)
 
 const navItems = [
   { label: 'Checkout', title: '核销工作台', to: '/', icon: ShoppingCart },
-  { label: 'Inventory', title: '库存矩阵', to: '/inventory', icon: Boxes },
-  { label: 'Insights', title: '经营看板', to: '/insights', icon: BarChart3 }
+  { label: 'Orders', title: '订单历史', to: '/orders', icon: ClipboardList },
+  { label: 'Inventory', title: '库存矩阵', to: '/inventory', icon: Boxes, badge: true },
+  { label: 'Insights', title: '经营看板', to: '/insights', icon: BarChart3 },
+  { label: 'Copilot', title: '智能助理', to: '/ai', icon: Bot },
+  { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
+  { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
+  
 ]
 
 const isActive = (to: string) => {
@@ -17,6 +23,27 @@ const isActive = (to: string) => {
   }
   return route.path.startsWith(to)
 }
+
+const fetchAlerts = async () => {
+  try {
+    const res = await $fetch<{ count: number }>('/api/products/alerts')
+    alertCount.value = res.count
+  } catch {
+    // 静默失败
+  }
+}
+
+let alertTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(async () => {
+  await fetchAlerts()
+  // 每 60 秒轮询一次
+  alertTimer = setInterval(fetchAlerts, 60_000)
+})
+
+onUnmounted(() => {
+  if (alertTimer) clearInterval(alertTimer)
+})
 
 const logout = async () => {
   if (loggingOut.value) {
@@ -45,46 +72,42 @@ const logout = async () => {
         </div>
 
         <nav class="mt-6 space-y-1.5">
-          <NuxtLink
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
+          <NuxtLink v-for="item in navItems" :key="item.to" :to="item.to"
             class="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-all duration-200"
-            :class="
-              isActive(item.to)
+            :class="isActive(item.to)
                 ? 'border-slate-100 bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)]'
                 : 'text-slate-500 hover:border-slate-100 hover:bg-white/70 hover:text-slate-900'
-            "
-          >
+              ">
             <component :is="item.icon" class="h-4 w-4" />
-            <div class="leading-tight">
+            <div class="flex-1 leading-tight">
               <p class="font-medium">{{ item.title }}</p>
               <p class="text-xs text-slate-400">{{ item.label }}</p>
             </div>
+            <span v-if="item.badge && alertCount > 0"
+              class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
+              {{ alertCount > 99 ? '99+' : alertCount }}
+            </span>
           </NuxtLink>
         </nav>
 
-        <button
-          type="button"
+        <button type="button"
           class="mt-auto inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm text-slate-600 transition hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="loggingOut"
-          @click="logout"
-        >
+          :disabled="loggingOut" @click="logout">
           <LogOut class="h-4 w-4" />
           <span>{{ loggingOut ? '退出中...' : '退出登录' }}</span>
         </button>
       </div>
     </aside>
 
-    <div class="pl-64">
-      <header class="sticky top-0 z-10 border-b border-slate-100 bg-zinc-50/90 backdrop-blur">
-        <div class="mx-auto flex h-16 w-full max-w-7xl items-center px-8">
+    <div class="pl-64 flex flex-col min-h-screen">
+      <header class="sticky top-0 z-10 border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+        <div class="flex h-16 w-full items-center px-8">
           <h1 class="text-sm font-medium text-slate-900">LiteMart POS</h1>
         </div>
       </header>
 
-      <main class="bg-white">
-        <div class="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-7xl p-8">
+      <main class="flex-1">
+        <div class="min-h-[calc(100vh-4rem)] w-full p-6 md:p-8">
           <slot />
         </div>
       </main>

@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+  /* 隐藏所有内容 */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* 只显示拥有 print-receipt 类名及其子元素的可见性 */
+  .print-receipt, .print-receipt * {
+    visibility: visible;
+  }
+  
+  /* 将小票移动到左上角 */
+  .print-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    padding: 0;
+  }
+}

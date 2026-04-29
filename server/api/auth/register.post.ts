@@ -2,6 +2,8 @@ import { H3Error } from 'h3'
 import { createSessionToken, hashPin, isValidPinFormat } from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { getClientIp } from '~~/server/utils/request'
 
 type RegisterBody = {
   pin?: string
@@ -79,6 +81,8 @@ export default defineEventHandler(async (event) => {
       path: '/',
       maxAge: AUTH_MAX_AGE_SECONDS
     })
+
+    await writeAuditLog(AUDIT_ACTIONS.REGISTER, '管理员 PIN 初始化', getClientIp(event))
 
     return {
       success: true
