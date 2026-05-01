@@ -2,6 +2,7 @@
 import {
   BarChart3,
   Boxes,
+  Building2,
   ClipboardList,
   LogOut,
   ScrollText,
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Checkout', title: '核销工作台', to: '/', icon: ShoppingCart },
   { label: 'Orders', title: '订单历史', to: '/orders', icon: ClipboardList },
   { label: 'Inventory', title: '库存矩阵', to: '/inventory', icon: Boxes, badge: true },
+  { label: 'Suppliers', title: '供应商管理', to: '/suppliers', icon: Building2 },
   { label: 'Insights', title: '经营看板', to: '/insights', icon: BarChart3 },
   { label: 'Copilot', title: '智能助理', to: '/ai', icon: Bot },
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },

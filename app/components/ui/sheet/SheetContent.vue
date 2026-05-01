@@ -31,16 +31,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
     <Transition name="sheet-slide">
       <aside
         v-if="open"
-        class="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-slate-100 bg-white p-8 shadow-[0_16px_48px_rgba(15,23,42,0.12)]"
+        class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-100 bg-white shadow-[0_16px_48px_rgba(15,23,42,0.12)]"
       >
-        <button
-          type="button"
-          class="absolute right-4 top-4 rounded-md p-1 text-slate-400 transition hover:bg-zinc-50 hover:text-slate-700"
-          @click="setOpen(false)"
-        >
-          <X class="h-4 w-4" />
-        </button>
-        <slot />
+        <div class="relative flex-1 overflow-y-auto p-8">
+          <button
+            type="button"
+            class="sticky top-0 float-right rounded-md p-1 text-slate-400 transition hover:bg-zinc-50 hover:text-slate-700 z-10"
+            @click="setOpen(false)"
+          >
+            <X class="h-4 w-4" />
+          </button>
+          <slot />
+        </div>
       </aside>
     </Transition>
   </Teleport>

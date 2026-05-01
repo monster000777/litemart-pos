@@ -61,7 +61,13 @@ const ACTION_LABELS: Record<string, string> = {
   REFUND: '退款',
   PRODUCT_CREATE: '新增商品',
   PRODUCT_UPDATE: '更新商品',
-  PRODUCT_DELETE: '删除商品'
+  PRODUCT_DELETE: '删除商品',
+  SUPPLIER_CREATE: '新增供应商',
+  SUPPLIER_UPDATE: '更新供应商',
+  SUPPLIER_DELETE: '删除供应商',
+  PURCHASE_CREATE: '创建采购单',
+  PURCHASE_RECEIVE: '采购入库',
+  PURCHASE_CANCEL: '取消采购'
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -74,7 +80,13 @@ const ACTION_COLORS: Record<string, string> = {
   REFUND: 'bg-orange-50 text-orange-700 border-orange-100',
   PRODUCT_CREATE: 'bg-teal-50 text-teal-700 border-teal-100',
   PRODUCT_UPDATE: 'bg-cyan-50 text-cyan-700 border-cyan-100',
-  PRODUCT_DELETE: 'bg-rose-50 text-rose-700 border-rose-100'
+  PRODUCT_DELETE: 'bg-rose-50 text-rose-700 border-rose-100',
+  SUPPLIER_CREATE: 'bg-violet-50 text-violet-700 border-violet-100',
+  SUPPLIER_UPDATE: 'bg-purple-50 text-purple-700 border-purple-100',
+  SUPPLIER_DELETE: 'bg-rose-50 text-rose-700 border-rose-100',
+  PURCHASE_CREATE: 'bg-sky-50 text-sky-700 border-sky-100',
+  PURCHASE_RECEIVE: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  PURCHASE_CANCEL: 'bg-slate-100 text-slate-500 border-slate-200'
 }
 
 const actionLabel = (a: string) => ACTION_LABELS[a] || a

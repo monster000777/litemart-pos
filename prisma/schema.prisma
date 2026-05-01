@@ -8,16 +8,22 @@ datasource db {
 }
 
 model Product {
-  id         String      @id @default(cuid())
-  name       String
-  sku        String      @unique
-  image      String?
-  price      Decimal
-  stock      Int         @default(0)
-  category   String
-  minStock   Int         @default(0)
-  orderItems OrderItem[]
-  createdAt  DateTime    @default(now())
+  id              String           @id @default(cuid())
+  name            String
+  sku             String           @unique
+  image           String?
+  price           Decimal
+  costPrice       Decimal          @default(0)
+  stock           Int              @default(0)
+  category        String
+  minStock        Int              @default(0)
+  supplierId      String?
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  orderItems      OrderItem[]
+  purchaseItems   PurchaseItem[]
+  createdAt       DateTime         @default(now())
+
+  @@index([supplierId])
 }
 
 model Order {
@@ -59,4 +65,49 @@ model AuditLog {
 
   @@index([action])
   @@index([createdAt])
+}
+
+model Supplier {
+  id              String           @id @default(cuid())
+  name            String
+  contactName     String?
+  phone           String?
+  email           String?
+  address         String?
+  status          String           @default("ACTIVE")
+  notes           String?
+  products        Product[]
+  purchaseOrders  PurchaseOrder[]
+  createdAt       DateTime         @default(now())
+
+  @@index([status])
+}
+
+model PurchaseOrder {
+  id          String          @id @default(cuid())
+  orderNo     String          @unique
+  supplierId  String
+  supplier    Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  totalAmount Decimal
+  status      String          @default("PENDING")
+  notes       String?
+  items       PurchaseItem[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity        Int
+  unitCost        Decimal
+
+  @@index([purchaseOrderId])
+  @@index([productId])
 }
