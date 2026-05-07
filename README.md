@@ -41,6 +41,10 @@ npx prisma db seed
 ```bash
 NUXT_AUTH_SECRET=
 NUXT_ADMIN_PIN=
+NUXT_AI_PROVIDER=
+NUXT_AI_API_KEY=
+NUXT_AI_API_URL=
+NUXT_AI_MODEL=
 NUXT_MINIMAX_API_KEY=
 NUXT_MINIMAX_API_URL=
 NUXT_MINIMAX_MODEL=
@@ -48,9 +52,11 @@ NUXT_MINIMAX_MODEL=
 
 说明：
 
-- `NUXT_MINIMAX_API_KEY`：可选；配置后会调用 MiniMax 生成简报，不配置时使用本地兜底简报
-- `NUXT_MINIMAX_API_URL`：可选，默认走 MiniMax 聊天接口
-- `NUXT_MINIMAX_MODEL`：可选，默认 `abab6.5-chat`
+- `NUXT_AI_PROVIDER`：可选；建议填 `openai-compatible` 或 `minimax`，未设置时自动判断
+- `NUXT_AI_API_KEY`：可选；通用 AI 接口密钥，不配置时使用本地兜底简报
+- `NUXT_AI_API_URL`：可选；通用聊天补全接口地址（支持 OpenAI 兼容接口）
+- `NUXT_AI_MODEL`：可选；通用模型名，MiniMax 默认 `abab6.5-chat`，其它默认 `gpt-4o-mini`
+- `NUXT_MINIMAX_*`：保留向后兼容，若未配置 `NUXT_AI_*` 会自动回退读取
 - `NUXT_AUTH_SECRET`：PIN 登录签名密钥（建议 32 位以上随机字符串）
 - `NUXT_ADMIN_PIN`：可选；配置后可作为初始化 PIN（6 位数字），未配置时首次访问登录页可直接注册 PIN
 

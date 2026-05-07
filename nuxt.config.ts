@@ -7,6 +7,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     authSecret: '',
     adminPin: '',
+    aiProvider: '',
+    aiApiKey: '',
+    aiApiUrl: '',
+    aiModel: '',
     minimaxApiKey: '',
     minimaxApiUrl: '',
     minimaxModel: ''

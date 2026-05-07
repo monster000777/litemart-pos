@@ -1,6 +1,8 @@
 import { H3Error } from 'h3'
 import { ORDER_STATUS } from '~~/shared/constants/order'
 import { prisma } from '~~/server/lib/prisma'
+import { executeAiTextRequest, getAiErrorMessage } from '~~/server/utils/ai-client'
+import { resolveAiConfig } from '~~/server/utils/ai-config'
 
 const SYSTEM_PROMPT_TEMPLATE = `
 你是一位专业的零售数据分析 AI 助手，专门为 LiteMart POS 系统提供 Natural Language BI 服务。
@@ -28,16 +30,14 @@ export default defineEventHandler(async (event) => {
     }
 
     const config = useRuntimeConfig(event)
-    const minimaxApiKey = String(config.minimaxApiKey || '').trim()
-    const minimaxModel = config.minimaxModel || 'abab6.5-chat'
-    const minimaxApiUrl =
-      config.minimaxApiUrl || 'https://api.minimax.chat/v1/text/chatcompletion_pro'
+    const { aiApiKey, aiModel, candidateUrls, isMiniMaxProvider, legacyCandidateUrls } =
+      resolveAiConfig(config)
 
-    if (!minimaxApiKey) {
+    if (!aiApiKey) {
       // 本地兜底回复，告知缺少配置
       return {
         reply:
-          '系统未配置 MiniMax API Key，无法进行数据分析。请在环境变量中配置 `NUXT_MINIMAX_API_KEY`。'
+          '系统未配置 AI API Key，无法进行数据分析。请配置 `NUXT_AI_API_KEY`（或兼容的 `NUXT_MINIMAX_API_KEY`）。'
       }
     }
 
@@ -131,103 +131,30 @@ export default defineEventHandler(async (event) => {
       { role: 'user', content: question }
     ]
 
-    const candidateUrls = Array.from(
-      new Set(
-        [
-          minimaxApiUrl,
-          'https://api.minimax.chat/v1/text/chatcompletion_pro',
-          'https://api.minimax.chat/v1/text/chatcompletion_v2'
-        ].filter(Boolean)
-      )
-    )
+    const legacyMessages = history
+      .map((m: any) => ({
+        sender_type: m.role === 'user' ? 'USER' : 'BOT',
+        sender_name: m.role === 'user' ? 'user' : 'bot',
+        text: m.content
+      }))
+      .concat({ sender_type: 'USER', sender_name: 'user', text: question })
 
-    const callOpenAI = (url: string) =>
-      $fetch<any>(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${minimaxApiKey}` },
-        body: { model: minimaxModel, messages, temperature: 0.1, max_tokens: 800 }
-      })
-
-    const callLegacy = (url: string, useArray: boolean) => {
-      const legacyMessages = history
-        .map((m: any) => ({
-          sender_type: m.role === 'user' ? 'USER' : 'BOT',
-          sender_name: m.role === 'user' ? 'user' : 'bot',
-          text: m.content
-        }))
-        .concat({ sender_type: 'USER', sender_name: 'user', text: question })
-
-      const botSettingObj = { bot_name: 'bot', content: systemPrompt }
-
-      return $fetch<any>(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${minimaxApiKey}` },
-        body: {
-          model: minimaxModel,
-          bot_setting: useArray ? [botSettingObj] : botSettingObj,
-          messages: legacyMessages,
-          temperature: 0.1,
-          max_tokens: 800
-        }
-      })
-    }
-
-    const parseResponse = (res: any) => {
-      if (res?.base_resp && res.base_resp.status_code !== 0) {
-        throw new Error(res.base_resp.status_msg || 'MiniMax API 接口异常')
-      }
-      return (
-        res?.choices?.[0]?.message?.content?.trim() ||
-        res?.reply?.trim() ||
-        res?.output_text?.trim() ||
-        res?.output?.text?.trim()
-      )
-    }
-
-    let reply = ''
-    let lastError = null
-
-    for (const url of candidateUrls) {
-      if (reply) break
-
-      try {
-        const res = await callOpenAI(url)
-        reply = parseResponse(res)
-        if (reply) break
-      } catch (error: any) {
-        lastError = error
-        const msg = (
-          error?.data?.base_resp?.status_msg ||
-          error?.data?.message ||
-          error?.message ||
-          ''
-        ).toLowerCase()
-
-        if (msg.includes('invalid params') && msg.includes('bot_setting')) {
-          try {
-            const resLegacyArray = await callLegacy(url, true)
-            reply = parseResponse(resLegacyArray)
-            if (reply) break
-          } catch (e2: any) {
-            lastError = e2
-            try {
-              const resLegacyObj = await callLegacy(url, false)
-              reply = parseResponse(resLegacyObj)
-              if (reply) break
-            } catch (e3: any) {
-              lastError = e3
-            }
-          }
-        }
-      }
-    }
+    const { text: reply, remoteFailures } = await executeAiTextRequest({
+      aiApiKey,
+      aiModel,
+      candidateUrls,
+      legacyCandidateUrls,
+      isMiniMaxProvider,
+      openAiMessages: messages,
+      legacyMessages,
+      systemPrompt,
+      botName: 'bot',
+      temperature: 0.1,
+      maxTokens: 800
+    })
 
     if (!reply) {
-      const errMessage =
-        lastError?.data?.base_resp?.status_msg ||
-        lastError?.data?.message ||
-        lastError?.message ||
-        '解析大模型回复失败'
+      const errMessage = remoteFailures.at(-1)?.replace(/^[^:]+:\s*/, '') || '解析大模型回复失败'
       throw createError({ statusCode: 500, message: errMessage })
     }
 
@@ -236,8 +163,7 @@ export default defineEventHandler(async (event) => {
     console.error('Chat BI Error:', error)
     if (error instanceof H3Error) throw error
 
-    const errMessage =
-      error?.data?.base_resp?.status_msg || error?.data?.message || error?.message || '对话处理失败'
+    const errMessage = getAiErrorMessage(error) || '对话处理失败'
 
     throw createError({ statusCode: 500, message: errMessage })
   }

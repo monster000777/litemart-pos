@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RefreshCw } from 'lucide-vue-next'
 import Skeleton from '~/components/ui/skeleton/Skeleton.vue'
-import type { InsightsAiSummaryDto, InsightsOverviewDto, InsightsStatsDto } from '~/types/insights'
+import type { InsightsOverviewDto, InsightsStatsDto } from '~/types/insights'
 
 const { getApiErrorMessage, removeKnownPrefix } = useApiError()
 
@@ -97,41 +97,8 @@ const areaPath = computed(() => {
 const topProducts = computed(() => stats.value?.topProducts ?? [])
 const maxTopQuantity = computed(() => Math.max(...topProducts.value.map((p) => p.quantity), 1))
 
-// --- AI Summary Logic ---
-const aiNonce = ref(Date.now())
-const aiSummary = ref<InsightsAiSummaryDto | null>(null)
-const aiPending = ref(false)
-const aiError = ref<unknown>(null)
-
-const fetchAiSummary = async () => {
-  if (aiPending.value) {
-    return
-  }
-  aiPending.value = true
-  aiError.value = null
-  try {
-    aiSummary.value = await $fetch<InsightsAiSummaryDto>('/api/insights/ai-summary', {
-      query: { nonce: aiNonce.value },
-      cache: 'no-store',
-      headers: {
-        'cache-control': 'no-cache'
-      }
-    })
-  } catch (error) {
-    aiError.value = error
-  } finally {
-    aiPending.value = false
-  }
-}
-
-const handleRefreshAiSummary = async () => {
-  aiNonce.value = Date.now()
-  await fetchAiSummary()
-}
-
-onMounted(async () => {
-  await fetchAiSummary()
-})
+// --- AI Summary Logic (module-level singleton, survives route changes) ---
+const { aiSummary, aiPending, aiError, fetchAiSummary, handleRefreshAiSummary } = useAiSummary()
 
 const aiErrorMessage = computed(() => {
   const message = getApiErrorMessage(aiError.value, 'AI 简报生成失败')
@@ -143,14 +110,12 @@ const aiGeneratedLabel = computed(() => {
     return ''
   }
   const date = new Date(aiSummary.value.generatedAt)
-  return date.toLocaleString('zh-CN', {
-    hour12: false
-  })
+  return date.toLocaleString('zh-CN', { hour12: false })
 })
 
 const formattedAiSummary = computed(() => {
   let text = aiSummary.value?.summary || ''
-  if (!text) return '暂无 AI 简报，请点击“重新生成”。'
+  if (!text) return '暂无 AI 简报，请点击"重新生成"。'
 
   text = text.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-semibold">$1</strong>')
@@ -166,6 +131,10 @@ const formattedAiSummary = computed(() => {
   text = text.replace(/(<br\/>){3,}/g, '<br/><br/>')
 
   return text
+})
+
+onMounted(async () => {
+  await fetchAiSummary()
 })
 </script>
 

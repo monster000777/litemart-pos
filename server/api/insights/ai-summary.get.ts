@@ -1,26 +1,9 @@
 import { H3Error } from 'h3'
 import { ORDER_STATUS } from '~~/shared/constants/order'
 import { prisma } from '~~/server/lib/prisma'
+import { executeAiTextRequest } from '~~/server/utils/ai-client'
+import { resolveAiConfig } from '~~/server/utils/ai-config'
 
-type MiniMaxResponse = {
-  reply?: string
-  output_text?: string
-  output?: {
-    text?: string
-  }
-  choices?: Array<{
-    message?: {
-      content?: string
-    }
-  }>
-  base_resp?: {
-    status_code?: number
-    status_msg?: string
-  }
-}
-
-const LEGACY_MINIMAX_URL = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
-const OPENAI_COMPATIBLE_URL = 'https://api.minimax.chat/v1/text/chatcompletion_pro'
 const SYSTEM_PROMPT = `
 你是一位拥有 10 年经验的零售数据分析专家。
 你将收到一段本周销售 JSON，包含商品名、销量、库存余量等字段。
@@ -50,9 +33,8 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const nonce = typeof query.nonce === 'string' ? query.nonce.trim() : ''
     const config = useRuntimeConfig(event)
-    const minimaxApiKey = String(config.minimaxApiKey || '').trim()
-    const minimaxApiUrl = config.minimaxApiUrl || LEGACY_MINIMAX_URL
-    const minimaxModel = config.minimaxModel || 'abab6.5-chat'
+    const { aiApiKey, aiModel, candidateUrls, isMiniMaxProvider, legacyCandidateUrls } =
+      resolveAiConfig(config)
 
     const now = new Date()
     const weekStart = getWeekStart(now)
@@ -163,32 +145,7 @@ export default defineEventHandler(async (event) => {
 ${JSON.stringify(payload)}
 `.trim()
 
-    const requestHeaders = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${minimaxApiKey}`
-    }
-
     const toMoney = (value: number) => `¥${value.toFixed(2)}`
-
-    const parseSummary = (response: MiniMaxResponse) => {
-      return (
-        response.reply?.trim() ||
-        response.output_text?.trim() ||
-        response.output?.text?.trim() ||
-        response.choices?.[0]?.message?.content?.trim() ||
-        ''
-      )
-    }
-
-    const getErrorMessage = (error: unknown) => {
-      const err = error as { data?: { message?: string }; message?: string } | null
-      return err?.data?.message || err?.message || 'unknown error'
-    }
-
-    const isBotSettingError = (message: string) => {
-      const normalized = message.toLowerCase()
-      return normalized.includes('invalid params') && normalized.includes('bot_setting')
-    }
 
     const buildFallbackSummary = () => {
       const weeklyAmount = Number(
@@ -214,90 +171,27 @@ ${JSON.stringify(payload)}
       ].join('\n')
     }
 
-    const callLegacy = (url: string, useArrayBotSetting: boolean) =>
-      $fetch<MiniMaxResponse>(url, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: {
-          model: minimaxModel,
-          bot_setting: useArrayBotSetting
-            ? [
-                {
-                  bot_name: 'LiteMart POS',
-                  content: SYSTEM_PROMPT
-                }
-              ]
-            : {
-                bot_name: 'LiteMart POS',
-                content: SYSTEM_PROMPT
-              },
-          messages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
-          temperature: 0.3,
-          max_tokens: 500
-        }
-      })
-
-    const callOpenAICompatible = (url: string) =>
-      $fetch<MiniMaxResponse>(url, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: {
-          model: minimaxModel,
-          messages: [
+    const { text: summaryText, remoteFailures } = aiApiKey
+      ? await executeAiTextRequest({
+          aiApiKey,
+          aiModel,
+          candidateUrls,
+          legacyCandidateUrls,
+          isMiniMaxProvider,
+          openAiMessages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: userPrompt }
           ],
+          legacyMessages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
+          systemPrompt: SYSTEM_PROMPT,
+          botName: 'LiteMart POS',
           temperature: 0.3,
-          max_tokens: 500
-        }
-      })
+          maxTokens: 1500,
+          preferLegacyFirst: true
+        })
+      : { text: '', remoteFailures: [] }
 
-    let summary = ''
-    const remoteFailures: string[] = []
-    if (minimaxApiKey) {
-      const candidateUrls = Array.from(new Set([minimaxApiUrl, OPENAI_COMPATIBLE_URL]))
-      for (const url of candidateUrls) {
-        try {
-          const response = await callLegacy(url, true)
-          const remoteSummary = parseSummary(response)
-          if (response.base_resp?.status_code && response.base_resp.status_code !== 0) {
-            const message = response.base_resp.status_msg || 'MiniMax 接口调用失败'
-            if (isBotSettingError(message)) {
-              const fallbackShapeResponse = await callLegacy(url, false)
-              const fallbackShapeSummary = parseSummary(fallbackShapeResponse)
-              if (
-                (!fallbackShapeResponse.base_resp?.status_code ||
-                  fallbackShapeResponse.base_resp.status_code === 0) &&
-                fallbackShapeSummary
-              ) {
-                summary = fallbackShapeSummary
-                break
-              }
-            }
-          } else if (remoteSummary) {
-            summary = remoteSummary
-            break
-          }
-        } catch (error) {
-          remoteFailures.push(`legacy(${url}): ${getErrorMessage(error)}`)
-        }
-
-        try {
-          const response = await callOpenAICompatible(url)
-          const remoteSummary = parseSummary(response)
-          if (
-            (!response.base_resp?.status_code || response.base_resp.status_code === 0) &&
-            remoteSummary
-          ) {
-            summary = remoteSummary
-            break
-          }
-        } catch (error) {
-          remoteFailures.push(`openai-compatible(${url}): ${getErrorMessage(error)}`)
-        }
-      }
-    }
-
+    let summary = summaryText
     const usedFallback = !summary
     if (usedFallback) {
       summary = buildFallbackSummary()
