@@ -111,7 +111,8 @@ export default defineEventHandler(async (event) => {
     })
 
     return {
-      success: true
+      success: true,
+      role: authConfig.role
     }
   } catch (error) {
     if (error instanceof H3Error) {

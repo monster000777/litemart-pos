@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { LoaderCircle, RotateCcw, ArrowLeft } from 'lucide-vue-next'
+import type { UserRole } from '~~/shared/constants/rbac'
 
 definePageMeta({
   layout: false
@@ -45,6 +46,7 @@ const isInitialized = ref(false)
 const { getApiErrorMessage } = useApiError()
 const route = useRoute()
 const authState = useState<boolean | null>('auth:verified', () => null)
+const authRole = useState<UserRole | null>('auth:role', () => null)
 
 const activePin = computed({
   get: () => {
@@ -146,6 +148,11 @@ const completeAuthFlow = async () => {
   await navigateTo(redirect || '/')
 }
 
+type AuthMutationResponse = {
+  success: boolean
+  role: UserRole
+}
+
 const handleApiError = (error: unknown, fallback: string) => {
   const err = error as {
     data?: { data?: { lockSeconds?: number }; message?: string }
@@ -166,12 +173,17 @@ const login = async () => {
   submitting.value = true
   resetMessages()
   try {
-    await $fetch('/api/auth/login', { method: 'POST', body: { pin: loginPin.value } })
+    const result = await $fetch<AuthMutationResponse>('/api/auth/login', {
+      method: 'POST',
+      body: { pin: loginPin.value }
+    })
+    authRole.value = result.role
     await completeAuthFlow()
   } catch (error) {
     handleApiError(error, '登录失败，请稍后重试')
     loginPin.value = ''
     authState.value = false
+    authRole.value = null
   } finally {
     submitting.value = false
   }
@@ -186,15 +198,17 @@ const register = async () => {
   submitting.value = true
   resetMessages()
   try {
-    await $fetch('/api/auth/register', {
+    const result = await $fetch<AuthMutationResponse>('/api/auth/register', {
       method: 'POST',
       body: { pin: registerPin.value, confirmPin: confirmPin.value }
     })
+    authRole.value = result.role
     await completeAuthFlow()
   } catch (error) {
     handleApiError(error, '注册失败，请稍后重试')
     confirmPin.value = ''
     authState.value = false
+    authRole.value = null
   } finally {
     submitting.value = false
   }
@@ -221,6 +235,7 @@ const resetPin = async () => {
     } else {
       resetConfirmPin.value = ''
     }
+    authRole.value = null
   } finally {
     submitting.value = false
   }

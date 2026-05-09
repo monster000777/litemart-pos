@@ -1,46 +1,62 @@
+import { canAccessAppPath, type UserRole } from '~~/shared/constants/rbac'
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const authState = useState<boolean | null>('auth:verified', () => null)
+  const authRole = useState<UserRole | null>('auth:role', () => null)
   const authVerifiedAt = useState<number>('auth:verifiedAt', () => 0)
   const CLIENT_AUTH_CACHE_MS = 15_000
 
   const verifySession = async (force = false) => {
     const hasFreshClientCache =
       import.meta.client &&
-      authState.value !== null &&
+      authState.value === true &&
+      authRole.value !== null &&
       Date.now() - authVerifiedAt.value < CLIENT_AUTH_CACHE_MS
 
     if (!force && hasFreshClientCache) {
-      return authState.value
+      return {
+        authenticated: true as const,
+        role: authRole.value
+      }
     }
     try {
-      await $fetch('/api/auth/session', {
+      const session = await $fetch<{ authenticated: true; role: UserRole }>('/api/auth/session', {
         headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined
       })
       authState.value = true
+      authRole.value = session.role
       authVerifiedAt.value = Date.now()
-      return true
+      return session
     } catch {
       authState.value = false
+      authRole.value = null
       authVerifiedAt.value = Date.now()
-      return false
+      return null
     }
   }
 
   if (to.path === '/login') {
-    const authenticated = await verifySession(authState.value === false)
-    if (authenticated) {
+    const session = await verifySession(authState.value === false)
+    if (session) {
       return navigateTo('/')
     }
     return
   }
 
-  const authenticated = await verifySession()
-  if (!authenticated) {
+  const session = await verifySession()
+  if (!session) {
     // 保存当前路由，登录后回跳
     const redirect = to.fullPath !== '/' ? to.fullPath : undefined
     return navigateTo({
       path: '/login',
       query: redirect ? { redirect } : undefined
     })
+  }
+
+  if (!canAccessAppPath(session.role, to.path)) {
+    if (to.path !== '/') {
+      return navigateTo('/')
+    }
+    return
   }
 })

@@ -10,11 +10,21 @@ import {
   MonitorPlay,
   Bot
 } from 'lucide-vue-next'
+import {
+  ALL_USER_ROLES,
+  canAccessAppPath,
+  ROLE_LABELS,
+  type UserRole
+} from '~~/shared/constants/rbac'
 
 const route = useRoute()
 const loggingOut = ref(false)
+const switchingRole = ref(false)
 const authState = useState<boolean | null>('auth:verified', () => null)
+const authRole = useState<UserRole | null>('auth:role', () => null)
 const alertCount = ref(0)
+const { toast } = useToast()
+const { getApiErrorMessage } = useApiError()
 
 const navItems = [
   { label: 'Checkout', title: '核销工作台', to: '/', icon: ShoppingCart },
@@ -26,6 +36,16 @@ const navItems = [
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
   { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
 ]
+
+const visibleNavItems = computed(() =>
+  navItems.filter((item) => canAccessAppPath(authRole.value, item.to))
+)
+
+const roleLabel = computed(() => (authRole.value ? ROLE_LABELS[authRole.value] : ''))
+const roleOptions = ALL_USER_ROLES.map((role) => ({
+  value: role,
+  label: ROLE_LABELS[role]
+}))
 
 const isActive = (to: string) => {
   if (to === '/') {
@@ -66,8 +86,60 @@ const logout = async () => {
     })
   } finally {
     authState.value = false
+    authRole.value = null
     await navigateTo('/login')
     loggingOut.value = false
+  }
+}
+
+const ensureAccessibleRoute = async () => {
+  if (!canAccessAppPath(authRole.value, route.path)) {
+    if (route.path !== '/') {
+      await navigateTo('/')
+    }
+  }
+}
+
+const switchRole = async (event: Event) => {
+  const target = event.target as HTMLSelectElement | null
+  const nextRole = target?.value as UserRole | undefined
+
+  if (!nextRole || nextRole === authRole.value || switchingRole.value) {
+    return
+  }
+
+  const pin = window.prompt('请输入当前 6 位 PIN 以切换角色')?.trim() ?? ''
+  if (!pin) {
+    if (target) {
+      target.value = authRole.value ?? ''
+    }
+    return
+  }
+
+  switchingRole.value = true
+  try {
+    const result = await $fetch<{ success: true; role: UserRole }>('/api/auth/role', {
+      method: 'PATCH',
+      body: { role: nextRole, pin }
+    })
+    authRole.value = result.role
+    await ensureAccessibleRoute()
+    toast({
+      title: `当前角色已切换为${ROLE_LABELS[result.role]}`,
+      variant: 'success',
+      duration: 2500
+    })
+  } catch (error) {
+    toast({
+      title: getApiErrorMessage(error, '角色切换失败，请稍后重试'),
+      variant: 'error',
+      duration: 3000
+    })
+    if (target) {
+      target.value = authRole.value ?? ''
+    }
+  } finally {
+    switchingRole.value = false
   }
 }
 </script>
@@ -86,15 +158,27 @@ const logout = async () => {
             <span class="text-[15px] font-bold tracking-tight text-slate-900 leading-tight"
               >LiteMart POS</span
             >
-            <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mt-0.5"
-              >Workspace</span
-            >
+            <div class="mt-0.5 flex items-center gap-2">
+              <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{{
+                roleLabel || 'Workspace'
+              }}</span>
+              <select
+                class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="switchingRole || !authRole"
+                :value="authRole ?? ''"
+                @change="switchRole"
+              >
+                <option v-for="option in roleOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
           </div>
         </div>
 
         <nav class="mt-6 space-y-1.5">
           <NuxtLink
-            v-for="item in navItems"
+            v-for="item in visibleNavItems"
             :key="item.to"
             :to="item.to"
             class="flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-sm transition-all duration-200"

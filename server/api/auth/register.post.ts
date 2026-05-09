@@ -4,6 +4,7 @@ import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/aut
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
+import { USER_ROLES } from '~~/shared/constants/rbac'
 
 type RegisterBody = {
   pin?: string
@@ -62,7 +63,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const hashedPin = await hashPin(pin)
-    await createAuthConfigIfMissing(hashedPin)
+    await createAuthConfigIfMissing(hashedPin, USER_ROLES.ADMIN)
 
     const created = await getAuthConfig()
     if (!created) {
@@ -85,7 +86,8 @@ export default defineEventHandler(async (event) => {
     await writeAuditLog(AUDIT_ACTIONS.REGISTER, '管理员 PIN 初始化', getClientIp(event))
 
     return {
-      success: true
+      success: true,
+      role: USER_ROLES.ADMIN
     }
   } catch (error) {
     if (error instanceof H3Error) {

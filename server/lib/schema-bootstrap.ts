@@ -77,10 +77,21 @@ const bootstrapSchema = async () => {
     CREATE TABLE IF NOT EXISTS "Config" (
       "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'singleton',
       "adminPin" TEXT NOT NULL,
+      "role" TEXT NOT NULL DEFAULT 'ADMIN',
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `)
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Config" ADD COLUMN "role" TEXT NOT NULL DEFAULT 'ADMIN'
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'role')) {
+      throw error
+    }
+  }
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "AuditLog" (

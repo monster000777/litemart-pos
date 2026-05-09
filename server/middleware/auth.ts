@@ -1,4 +1,5 @@
 import { verifySessionToken } from '~~/server/services/auth-service'
+import { assertApiRouteAccess, getCurrentUserRole } from '~~/server/services/rbac-service'
 import { AUTH_COOKIE_NAME } from '~~/shared/constants/auth'
 import { ensureSchemaBootstrapped } from '~~/server/lib/schema-bootstrap'
 
@@ -12,6 +13,7 @@ const PUBLIC_AUTH_PATHS = new Set([
 
 export default defineEventHandler(async (event) => {
   const pathname = getRequestURL(event).pathname
+  const method = event.method.toUpperCase()
 
   if (!pathname.startsWith('/api/')) {
     return
@@ -42,4 +44,12 @@ export default defineEventHandler(async (event) => {
       message: '未授权访问'
     })
   }
+
+  const role = await getCurrentUserRole()
+  event.context.auth = {
+    session,
+    role
+  }
+
+  assertApiRouteAccess(role, pathname, method)
 })
