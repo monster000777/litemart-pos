@@ -22,7 +22,7 @@ export const getAuthConfig = async () => {
 
   return {
     ...row,
-    role: row.role == null ? DEFAULT_USER_ROLE : normalizeUserRole(row.role)
+    role: normalizeUserRole(row.role)
   }
 }
 
@@ -33,21 +33,5 @@ export const createAuthConfigIfMissing = async (
   await prisma.$executeRaw`
     INSERT OR IGNORE INTO "Config" ("id", "adminPin", "role", "createdAt", "updatedAt")
     VALUES (${AUTH_CONFIG_ID}, ${hashedPin}, ${role}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-  `
-}
-
-export const updateAuthConfig = async (hashedPin: string) => {
-  await prisma.$executeRaw`
-    UPDATE "Config"
-    SET "adminPin" = ${hashedPin}, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${AUTH_CONFIG_ID}
-  `
-}
-
-export const updateAuthRole = async (role: UserRole) => {
-  await prisma.$executeRaw`
-    UPDATE "Config"
-    SET "role" = ${role}, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${AUTH_CONFIG_ID}
   `
 }

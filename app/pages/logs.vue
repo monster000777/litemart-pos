@@ -21,8 +21,8 @@ const currentPage = ref(1)
 const pageSize = 30
 
 const { getApiErrorMessage } = useApiError()
+const { formatDate } = useFormat()
 
-// 筛选条件变化时重置页码
 watch(actionFilter, () => {
   currentPage.value = 1
 })
@@ -42,23 +42,27 @@ const { data, pending, error } = await useAsyncData(
 const logs = computed(() => data.value?.logs ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const totalPages = computed(() => Math.ceil(total.value / pageSize))
-
 const errorMsg = computed(() =>
-  error.value ? getApiErrorMessage(error.value, '日志加载失败') : ''
+  error.value ? getApiErrorMessage(error.value, '日志加载失败，请稍后重试') : ''
 )
 
-const goPage = (p: number) => {
-  if (p >= 1 && p <= totalPages.value) currentPage.value = p
+const goPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
 }
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: '登录',
   LOGIN_FAILED: '登录失败',
   REGISTER: '注册',
-  LOGOUT: '登出',
+  LOGOUT: '退出',
   ROLE_SWITCH: '角色切换',
   RESET_PIN: 'PIN 重置',
-  CHECKOUT: '核销',
+  AUTH_USER_CREATE: '新增账号',
+  AUTH_USER_UPDATE: '更新账号',
+  AUTH_USER_RESET_PIN: '重置账号 PIN',
+  CHECKOUT: '收银',
   REFUND: '退款',
   PRODUCT_CREATE: '新增商品',
   PRODUCT_UPDATE: '更新商品',
@@ -78,6 +82,9 @@ const ACTION_COLORS: Record<string, string> = {
   LOGOUT: 'bg-slate-100 text-slate-600 border-slate-200',
   ROLE_SWITCH: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-100',
   RESET_PIN: 'bg-amber-50 text-amber-700 border-amber-100',
+  AUTH_USER_CREATE: 'bg-blue-50 text-blue-700 border-blue-100',
+  AUTH_USER_UPDATE: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+  AUTH_USER_RESET_PIN: 'bg-orange-50 text-orange-700 border-orange-100',
   CHECKOUT: 'bg-indigo-50 text-indigo-700 border-indigo-100',
   REFUND: 'bg-orange-50 text-orange-700 border-orange-100',
   PRODUCT_CREATE: 'bg-teal-50 text-teal-700 border-teal-100',
@@ -91,10 +98,9 @@ const ACTION_COLORS: Record<string, string> = {
   PURCHASE_CANCEL: 'bg-slate-100 text-slate-500 border-slate-200'
 }
 
-const actionLabel = (a: string) => ACTION_LABELS[a] || a
-const actionColor = (a: string) => ACTION_COLORS[a] || 'bg-slate-50 text-slate-600 border-slate-100'
-
-const { formatDate } = useFormat()
+const actionLabel = (action: string) => ACTION_LABELS[action] || action
+const actionColor = (action: string) =>
+  ACTION_COLORS[action] || 'bg-slate-50 text-slate-600 border-slate-100'
 
 const actionOptions = Object.entries(ACTION_LABELS)
 </script>
@@ -106,7 +112,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       <p class="mt-1 text-sm text-slate-500">共 {{ total }} 条记录</p>
     </div>
 
-    <!-- 筛选 -->
     <div class="flex items-center gap-3">
       <select
         v-model="actionFilter"
@@ -119,7 +124,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       </select>
     </div>
 
-    <!-- 错误 -->
     <div
       v-if="errorMsg"
       class="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-center text-sm text-rose-600"
@@ -127,7 +131,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       {{ errorMsg }}
     </div>
 
-    <!-- 骨架 -->
     <div v-if="pending" class="space-y-2">
       <div
         v-for="i in 8"
@@ -140,7 +143,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       </div>
     </div>
 
-    <!-- 日志列表 -->
     <div v-if="!pending && logs.length" class="space-y-2">
       <div
         v-for="log in logs"
@@ -159,7 +161,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       </div>
     </div>
 
-    <!-- 空状态 -->
     <div
       v-if="!pending && !logs.length && !errorMsg"
       class="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500"
@@ -167,7 +168,6 @@ const actionOptions = Object.entries(ACTION_LABELS)
       暂无操作日志
     </div>
 
-    <!-- 分页 -->
     <div v-if="totalPages > 1" class="flex items-center justify-center gap-2">
       <button
         type="button"

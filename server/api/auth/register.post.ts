@@ -1,6 +1,7 @@
 import { H3Error } from 'h3'
 import { createSessionToken, hashPin, isValidPinFormat } from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
+import { countAuthUsers, createAuthUser } from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
@@ -54,7 +55,8 @@ export default defineEventHandler(async (event) => {
     }
 
     const existing = await getAuthConfig()
-    if (existing) {
+    const userCount = await countAuthUsers()
+    if (existing || userCount > 0) {
       throw createError({
         statusCode: 409,
         statusMessage: 'Conflict',
@@ -64,17 +66,13 @@ export default defineEventHandler(async (event) => {
 
     const hashedPin = await hashPin(pin)
     await createAuthConfigIfMissing(hashedPin, USER_ROLES.ADMIN)
+    const userId = await createAuthUser({
+      name: '管理员',
+      pinHash: hashedPin,
+      role: USER_ROLES.ADMIN
+    })
 
-    const created = await getAuthConfig()
-    if (!created) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Internal Server Error',
-        message: '注册失败，请稍后重试'
-      })
-    }
-
-    const token = createSessionToken(authSecret)
+    const token = createSessionToken(authSecret, userId)
     setCookie(event, AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'strict',
@@ -83,7 +81,7 @@ export default defineEventHandler(async (event) => {
       maxAge: AUTH_MAX_AGE_SECONDS
     })
 
-    await writeAuditLog(AUDIT_ACTIONS.REGISTER, '管理员 PIN 初始化', getClientIp(event))
+    await writeAuditLog(AUDIT_ACTIONS.REGISTER, '初始化首个管理员账号', getClientIp(event))
 
     return {
       success: true,

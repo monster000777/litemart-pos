@@ -1,15 +1,35 @@
 import { createError } from 'h3'
-import { getAuthConfig } from '~~/server/services/auth-config-service'
-import { USER_ROLES, roleHasAtLeast, type UserRole } from '~~/shared/constants/rbac'
+import { findAuthUserById } from '~~/server/services/auth-user-service'
+import { isUserRole, USER_ROLES, roleHasAtLeast, type UserRole } from '~~/shared/constants/rbac'
 
 const isReadMethod = (method: string) => method === 'GET' || method === 'HEAD'
 
-export const getCurrentUserRole = async (): Promise<UserRole> => {
-  const authConfig = await getAuthConfig()
-  return authConfig?.role ?? USER_ROLES.ADMIN
+export const getCurrentAuthContext = async (session: { uid: string; vrole?: UserRole }) => {
+  const user = await findAuthUserById(session.uid)
+  if (!user || user.status !== 'ACTIVE') {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: '登录状态已失效'
+    })
+  }
+
+  const role =
+    user.role === USER_ROLES.ADMIN && session.vrole && isUserRole(session.vrole)
+      ? session.vrole
+      : user.role
+
+  return {
+    user,
+    role
+  }
 }
 
 export const canAccessApiRoute = (role: UserRole, pathname: string, method: string) => {
+  if (pathname.startsWith('/api/auth/users')) {
+    return roleHasAtLeast(role, USER_ROLES.ADMIN)
+  }
+
   if (pathname.startsWith('/api/auth/')) {
     return true
   }

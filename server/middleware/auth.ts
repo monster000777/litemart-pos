@@ -1,5 +1,5 @@
 import { verifySessionToken } from '~~/server/services/auth-service'
-import { assertApiRouteAccess, getCurrentUserRole } from '~~/server/services/rbac-service'
+import { assertApiRouteAccess, getCurrentAuthContext } from '~~/server/services/rbac-service'
 import { AUTH_COOKIE_NAME } from '~~/shared/constants/auth'
 import { ensureSchemaBootstrapped } from '~~/server/lib/schema-bootstrap'
 
@@ -45,11 +45,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const role = await getCurrentUserRole()
+  const auth = await getCurrentAuthContext(session)
   event.context.auth = {
     session,
-    role
+    user: auth.user,
+    role: auth.role
   }
 
-  assertApiRouteAccess(role, pathname, method)
+  assertApiRouteAccess(auth.role, pathname, method)
 })

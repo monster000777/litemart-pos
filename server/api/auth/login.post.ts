@@ -1,15 +1,16 @@
 import { H3Error } from 'h3'
-import {
-  createSessionToken,
-  hashPin,
-  isValidPinFormat,
-  verifyPin
-} from '~~/server/services/auth-service'
+import { createSessionToken, hashPin, isValidPinFormat } from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
+import {
+  createAuthUser,
+  ensureLegacyAdminUserMigrated,
+  findAuthUserByPin
+} from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
 import { getClientIp } from '~~/server/utils/request'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
+import { USER_ROLES } from '~~/shared/constants/rbac'
 
 type LoginBody = {
   pin?: string
@@ -66,6 +67,7 @@ export default defineEventHandler(async (event) => {
 
       const hashedPin = await hashPin(bootstrapPin)
       await createAuthConfigIfMissing(hashedPin)
+      await createAuthUser({ name: '管理员', pinHash: hashedPin, role: USER_ROLES.ADMIN })
       authConfig = await getAuthConfig()
       if (!authConfig) {
         throw createError({
@@ -76,8 +78,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const matched = await verifyPin(pin, authConfig.adminPin)
-    if (!matched) {
+    await ensureLegacyAdminUserMigrated()
+
+    const user = await findAuthUserByPin(pin)
+    if (!user) {
       // 先记录审计日志，确保即使触发锁定也能记录本次失败
       await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, 'PIN 码错误', clientIp)
       // 记录失败尝试
@@ -99,9 +103,9 @@ export default defineEventHandler(async (event) => {
 
     // 登录成功，清除限制记录
     limiter.reset(clientIp)
-    await writeAuditLog(AUDIT_ACTIONS.LOGIN, '登录成功', clientIp)
+    await writeAuditLog(AUDIT_ACTIONS.LOGIN, `登录成功：${user.name}`, clientIp)
 
-    const token = createSessionToken(authSecret)
+    const token = createSessionToken(authSecret, user.id)
     setCookie(event, AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'strict',
@@ -112,7 +116,7 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      role: authConfig.role
+      role: user.role
     }
   } catch (error) {
     if (error instanceof H3Error) {

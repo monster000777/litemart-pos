@@ -1,38 +1,32 @@
 <script setup lang="ts">
 import {
   BarChart3,
+  Bot,
   Boxes,
   Building2,
   ClipboardList,
   LogOut,
+  MonitorPlay,
   ScrollText,
   ShoppingCart,
-  MonitorPlay,
-  Bot
+  Users
 } from 'lucide-vue-next'
-import {
-  ALL_USER_ROLES,
-  canAccessAppPath,
-  ROLE_LABELS,
-  type UserRole
-} from '~~/shared/constants/rbac'
+import { canAccessAppPath, ROLE_LABELS, type UserRole } from '~~/shared/constants/rbac'
 
 const route = useRoute()
 const loggingOut = ref(false)
-const switchingRole = ref(false)
 const authState = useState<boolean | null>('auth:verified', () => null)
 const authRole = useState<UserRole | null>('auth:role', () => null)
 const alertCount = ref(0)
-const { toast } = useToast()
-const { getApiErrorMessage } = useApiError()
 
 const navItems = [
-  { label: 'Checkout', title: '核销工作台', to: '/', icon: ShoppingCart },
+  { label: 'Checkout', title: '收银工作台', to: '/', icon: ShoppingCart },
   { label: 'Orders', title: '订单历史', to: '/orders', icon: ClipboardList },
   { label: 'Inventory', title: '库存矩阵', to: '/inventory', icon: Boxes, badge: true },
   { label: 'Suppliers', title: '供应商管理', to: '/suppliers', icon: Building2 },
   { label: 'Insights', title: '经营看板', to: '/insights', icon: BarChart3 },
   { label: 'Copilot', title: '智能助理', to: '/ai', icon: Bot },
+  { label: 'Users', title: '账号管理', to: '/users', icon: Users },
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
   { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
 ]
@@ -42,10 +36,6 @@ const visibleNavItems = computed(() =>
 )
 
 const roleLabel = computed(() => (authRole.value ? ROLE_LABELS[authRole.value] : ''))
-const roleOptions = ALL_USER_ROLES.map((role) => ({
-  value: role,
-  label: ROLE_LABELS[role]
-}))
 
 const isActive = (to: string) => {
   if (to === '/') {
@@ -67,7 +57,6 @@ let alertTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   await fetchAlerts()
-  // 每 60 秒轮询一次
   alertTimer = setInterval(fetchAlerts, 60_000)
 })
 
@@ -79,6 +68,7 @@ const logout = async () => {
   if (loggingOut.value) {
     return
   }
+
   loggingOut.value = true
   try {
     await $fetch('/api/auth/logout', {
@@ -89,57 +79,6 @@ const logout = async () => {
     authRole.value = null
     await navigateTo('/login')
     loggingOut.value = false
-  }
-}
-
-const ensureAccessibleRoute = async () => {
-  if (!canAccessAppPath(authRole.value, route.path)) {
-    if (route.path !== '/') {
-      await navigateTo('/')
-    }
-  }
-}
-
-const switchRole = async (event: Event) => {
-  const target = event.target as HTMLSelectElement | null
-  const nextRole = target?.value as UserRole | undefined
-
-  if (!nextRole || nextRole === authRole.value || switchingRole.value) {
-    return
-  }
-
-  const pin = window.prompt('请输入当前 6 位 PIN 以切换角色')?.trim() ?? ''
-  if (!pin) {
-    if (target) {
-      target.value = authRole.value ?? ''
-    }
-    return
-  }
-
-  switchingRole.value = true
-  try {
-    const result = await $fetch<{ success: true; role: UserRole }>('/api/auth/role', {
-      method: 'PATCH',
-      body: { role: nextRole, pin }
-    })
-    authRole.value = result.role
-    await ensureAccessibleRoute()
-    toast({
-      title: `当前角色已切换为${ROLE_LABELS[result.role]}`,
-      variant: 'success',
-      duration: 2500
-    })
-  } catch (error) {
-    toast({
-      title: getApiErrorMessage(error, '角色切换失败，请稍后重试'),
-      variant: 'error',
-      duration: 3000
-    })
-    if (target) {
-      target.value = authRole.value ?? ''
-    }
-  } finally {
-    switchingRole.value = false
   }
 }
 </script>
@@ -155,23 +94,13 @@ const switchRole = async (event: Event) => {
             <ShoppingCart class="h-5 w-5" />
           </div>
           <div class="flex flex-col">
-            <span class="text-[15px] font-bold tracking-tight text-slate-900 leading-tight"
-              >LiteMart POS</span
-            >
+            <span class="text-[15px] font-bold leading-tight tracking-tight text-slate-900">
+              LiteMart POS
+            </span>
             <div class="mt-0.5 flex items-center gap-2">
-              <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{{
-                roleLabel || 'Workspace'
-              }}</span>
-              <select
-                class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-500 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="switchingRole || !authRole"
-                :value="authRole ?? ''"
-                @change="switchRole"
-              >
-                <option v-for="option in roleOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
+              <span class="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                {{ roleLabel || 'Workspace' }}
+              </span>
             </div>
           </div>
         </div>
@@ -214,7 +143,7 @@ const switchRole = async (event: Event) => {
       </div>
     </aside>
 
-    <div class="pl-64 flex flex-col min-h-screen">
+    <div class="flex min-h-screen flex-col pl-64">
       <header class="sticky top-0 z-10 border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
         <div class="flex h-16 w-full items-center gap-2 px-8">
           <ShoppingCart class="h-4 w-4 text-slate-900" />

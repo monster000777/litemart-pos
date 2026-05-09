@@ -1,12 +1,11 @@
 import { H3Error } from 'h3'
+import { hashPin, isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
 import {
-  createSessionToken,
-  hashPin,
-  isValidPinFormat,
-  verifyPin
-} from '~~/server/services/auth-service'
-import { getAuthConfig, updateAuthConfig } from '~~/server/services/auth-config-service'
-import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+  findAuthUserById,
+  findAuthUserByPin,
+  isPinInUse,
+  updateAuthUserPin
+} from '~~/server/services/auth-user-service'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
 import { getClientIp } from '~~/server/utils/request'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
@@ -56,27 +55,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const config = useRuntimeConfig(event)
-    const authSecret = String(config.authSecret || '').trim()
-
-    if (!authSecret) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Internal Server Error',
-        message: '缺少 NUXT_AUTH_SECRET 配置'
-      })
-    }
-
-    const authConfig = await getAuthConfig()
-    if (!authConfig) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Conflict',
-        message: '尚未初始化管理员 PIN，请先完成注册'
-      })
-    }
-
-    // 速率限制检查
+    // 速率限制检查（必须在任何昂贵 PIN 运算之前）
     const limiter = getPinRateLimiter()
     const clientIp = getClientIp(event)
     const remainingLock = limiter.check(clientIp)
@@ -89,8 +68,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const matched = await verifyPin(oldPin, authConfig.adminPin)
-    if (!matched) {
+    // 支持两种路径：已认证（session）/ 未认证（旧 PIN 查找）
+    const userId = event.context.auth?.user?.id
+    let user = userId ? await findAuthUserById(userId) : null
+    let pinAlreadyVerified = false
+
+    if (!user) {
+      user = await findAuthUserByPin(oldPin)
+      pinAlreadyVerified = !!user // findAuthUserByPin 内部已做 verifyPin
+    }
+
+    if (!user || user.status !== 'ACTIVE') {
       const newLockSeconds = limiter.recordFailure(clientIp)
       if (newLockSeconds !== null) {
         throw createError({
@@ -103,26 +91,45 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: '旧 PIN 码错误'
+        message: '旧 PIN 码错误或账号已停用'
       })
+    }
+
+    // 通过 session 找到用户时，仍需验证旧 PIN；通过 PIN 找到时已验证，跳过
+    if (!pinAlreadyVerified) {
+      const matched = await verifyPin(oldPin, user.pinHash)
+      if (!matched) {
+        const newLockSeconds = limiter.recordFailure(clientIp)
+        if (newLockSeconds !== null) {
+          throw createError({
+            statusCode: 429,
+            statusMessage: 'Too Many Requests',
+            message: `连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
+            data: { lockSeconds: newLockSeconds }
+          })
+        }
+        throw createError({
+          statusCode: 401,
+          statusMessage: 'Unauthorized',
+          message: '旧 PIN 码错误'
+        })
+      }
     }
 
     // 验证成功，清除限制
     limiter.reset(clientIp)
 
-    const hashedNewPin = await hashPin(newPin)
-    await updateAuthConfig(hashedNewPin)
-    await writeAuditLog(AUDIT_ACTIONS.RESET_PIN, 'PIN 已重置', clientIp)
+    if (await isPinInUse(newPin, { excludeUserId: user.id })) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Conflict',
+        message: '新 PIN 已被其他账号使用'
+      })
+    }
 
-    // 重置后签发新 session
-    const token = createSessionToken(authSecret)
-    setCookie(event, AUTH_COOKIE_NAME, token, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: !import.meta.dev,
-      path: '/',
-      maxAge: AUTH_MAX_AGE_SECONDS
-    })
+    const hashedNewPin = await hashPin(newPin)
+    await updateAuthUserPin(user.id, hashedNewPin)
+    await writeAuditLog(AUDIT_ACTIONS.RESET_PIN, `PIN 已重置：${user.name}`, clientIp)
 
     return {
       success: true

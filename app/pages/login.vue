@@ -93,9 +93,9 @@ const pageTitle = computed(() => {
 })
 
 const pageDescription = computed(() => {
-  if (mode.value === MODE_LOGIN) return '输入 6 位管理员 PIN 进入工作台'
+  if (mode.value === MODE_LOGIN) return '输入 6 位账号 PIN 进入工作台'
   if (mode.value === MODE_REGISTER) {
-    return registerStep.value === STEP_PIN ? '设置 6 位管理员 PIN' : '请再次输入 PIN 确认'
+    return registerStep.value === STEP_PIN ? '设置首个管理员账号 PIN' : '请再次输入 PIN 确认'
   }
   if (resetStep.value === STEP_OLD) return '输入当前 PIN 验证身份'
   if (resetStep.value === STEP_NEW) return '设置新的 6 位 PIN'
@@ -227,7 +227,13 @@ const resetPin = async () => {
         confirmPin: resetConfirmPin.value
       }
     })
-    await completeAuthFlow()
+    // 重置成功后切回登录模式，让用户用新 PIN 登录
+    mode.value = MODE_LOGIN
+    loginPin.value = ''
+    resetOldPin.value = ''
+    resetNewPin.value = ''
+    resetConfirmPin.value = ''
+    helperMessage.value = 'PIN 重置成功，请使用新 PIN 登录'
   } catch (error) {
     handleApiError(error, 'PIN 重置失败，请稍后重试')
     if (resetStep.value === STEP_OLD) {

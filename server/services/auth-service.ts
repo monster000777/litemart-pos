@@ -1,12 +1,15 @@
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
 import { AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+import type { UserRole } from '~~/shared/constants/rbac'
 
 const scrypt = promisify(scryptCallback)
 
 type SessionPayload = {
   sid: string
+  uid: string
   exp: number
+  vrole?: UserRole
 }
 
 const PIN_HASH_PREFIX = 'scrypt'
@@ -39,10 +42,16 @@ export const verifyPin = async (pin: string, hash: string) => {
   return timingSafeEqual(derived, actual)
 }
 
-export const createSessionToken = (secret: string) => {
+export const createSessionToken = (
+  secret: string,
+  userId: string,
+  options?: { viewRole?: UserRole }
+) => {
   const payload: SessionPayload = {
     sid: randomBytes(24).toString('base64url'),
-    exp: Math.floor(Date.now() / 1000) + AUTH_MAX_AGE_SECONDS
+    uid: userId,
+    exp: Math.floor(Date.now() / 1000) + AUTH_MAX_AGE_SECONDS,
+    vrole: options?.viewRole
   }
 
   const encodedPayload = encode(JSON.stringify(payload))
@@ -69,7 +78,11 @@ export const verifySessionToken = (token: string | undefined, secret: string) =>
 
   try {
     const payload = JSON.parse(decode(encodedPayload)) as SessionPayload
-    if (typeof payload.exp !== 'number' || typeof payload.sid !== 'string') {
+    if (
+      typeof payload.exp !== 'number' ||
+      typeof payload.sid !== 'string' ||
+      typeof payload.uid !== 'string'
+    ) {
       return null
     }
     if (payload.exp <= Math.floor(Date.now() / 1000)) {

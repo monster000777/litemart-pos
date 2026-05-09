@@ -94,6 +94,26 @@ const bootstrapSchema = async () => {
   }
 
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "AuthUser" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "pinHash" TEXT NOT NULL,
+      "role" TEXT NOT NULL DEFAULT 'CASHIER',
+      "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "AuthUser_status_idx" ON "AuthUser"("status")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "AuthUser_role_idx" ON "AuthUser"("role")
+  `)
+
+  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "AuditLog" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "action" TEXT NOT NULL,

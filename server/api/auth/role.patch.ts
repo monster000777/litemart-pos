@@ -1,16 +1,14 @@
 import { H3Error } from 'h3'
-import { isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
+import { createSessionToken, isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
-import { getAuthConfig, updateAuthRole } from '~~/server/services/auth-config-service'
 import { getClientIp } from '~~/server/utils/request'
-import { ALL_USER_ROLES, isUserRole, ROLE_LABELS, type UserRole } from '~~/shared/constants/rbac'
+import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+import { isUserRole, ROLE_LABELS, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 type UpdateRoleBody = {
   role?: UserRole
   pin?: string
 }
-
-const ALLOWED_ROLES = new Set<UserRole>(ALL_USER_ROLES)
 
 export default defineEventHandler(async (event) => {
   try {
@@ -18,7 +16,7 @@ export default defineEventHandler(async (event) => {
     const nextRole = body.role
     const pin = body.pin?.trim() ?? ''
 
-    if (!isUserRole(nextRole) || !ALLOWED_ROLES.has(nextRole)) {
+    if (!isUserRole(nextRole)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
@@ -34,16 +32,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const authConfig = await getAuthConfig()
-    if (!authConfig) {
+    const authUser = event.context.auth?.user
+    if (!authUser || authUser.role !== USER_ROLES.ADMIN) {
       throw createError({
-        statusCode: 409,
-        statusMessage: 'Conflict',
-        message: '尚未初始化管理员 PIN，请先完成注册'
+        statusCode: 403,
+        statusMessage: 'Forbidden',
+        message: '仅管理员可切换角色视图'
       })
     }
 
-    const matched = await verifyPin(pin, authConfig.adminPin)
+    const matched = await verifyPin(pin, authUser.pinHash)
     if (!matched) {
       throw createError({
         statusCode: 401,
@@ -52,14 +50,33 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (authConfig.role === nextRole) {
+    if (event.context.auth?.role === nextRole) {
       return {
         success: true,
         role: nextRole
       }
     }
 
-    await updateAuthRole(nextRole)
+    const authSecret = String(useRuntimeConfig(event).authSecret || '').trim()
+    if (!authSecret) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Internal Server Error',
+        message: '缺少 NUXT_AUTH_SECRET 配置'
+      })
+    }
+
+    const token = createSessionToken(authSecret, authUser.id, {
+      viewRole: nextRole === USER_ROLES.ADMIN ? undefined : nextRole
+    })
+    setCookie(event, AUTH_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: !import.meta.dev,
+      path: '/',
+      maxAge: AUTH_MAX_AGE_SECONDS
+    })
+
     await writeAuditLog(
       AUDIT_ACTIONS.ROLE_SWITCH,
       `角色切换为「${ROLE_LABELS[nextRole]}」`,

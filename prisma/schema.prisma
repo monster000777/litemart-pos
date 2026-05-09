@@ -57,6 +57,19 @@ model Config {
   updatedAt DateTime @updatedAt
 }
 
+model AuthUser {
+  id        String   @id @default(cuid())
+  name      String
+  pinHash   String
+  role      String   @default("CASHIER")
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([role])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   action    String

@@ -58,7 +58,7 @@ export const canAccessAppPath = (role: UserRole | null | undefined, path: string
     return roleHasAtLeast(role, USER_ROLES.MANAGER)
   }
 
-  if (path.startsWith('/logs')) {
+  if (path.startsWith('/logs') || path.startsWith('/users')) {
     return roleHasAtLeast(role, USER_ROLES.ADMIN)
   }
 
