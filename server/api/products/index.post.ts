@@ -55,6 +55,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    if (memberPrice != null && memberPrice > price) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '会员价不能高于售价'
+      })
+    }
+
     const product = await prisma.product.create({
       data: {
         name,

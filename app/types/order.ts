@@ -23,7 +23,6 @@ export type OrderDto = {
   orderNo: string
   totalAmount: number
   status: string
-  customerTail: string | null
   createdAt: string
   items: OrderItemDto[]
 }

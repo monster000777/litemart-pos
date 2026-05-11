@@ -54,10 +54,20 @@ const bootstrapSchema = async () => {
       "orderNo" TEXT NOT NULL,
       "totalAmount" DECIMAL NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'COMPLETED',
-      "customerTail" TEXT,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `)
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Order" DROP COLUMN "customerTail"
+    `)
+  } catch (error) {
+    const message = (error as { message?: string } | null)?.message ?? ''
+    if (!message.includes('no such column')) {
+      throw error
+    }
+  }
 
   await prisma.$executeRawUnsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS "Order_orderNo_key" ON "Order"("orderNo")

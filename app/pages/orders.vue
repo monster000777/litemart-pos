@@ -79,10 +79,10 @@ const goPage = (page: number) => {
 
 const exportCsv = () => {
   if (!orders.value.length) return
-  const header = '订单号,状态,总金额,客户尾号,下单时间,商品明细'
+  const header = '订单号,状态,总金额,下单时间,商品明细'
   const rows = orders.value.map((order) => {
     const items = order.items.map((item) => `${item.product.name}x${item.quantity}`).join('; ')
-    return `${order.orderNo},${statusLabel(order.status)},${order.totalAmount},${order.customerTail || '-'},${formatDate(order.createdAt)},"${items}"`
+    return `${order.orderNo},${statusLabel(order.status)},${order.totalAmount},${formatDate(order.createdAt)},"${items}"`
   })
   const csv = '\uFEFF' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -146,7 +146,7 @@ onUnmounted(() => {
         <input
           v-model="search"
           type="text"
-          placeholder="搜索订单号 / 客户尾号"
+          placeholder="搜索订单号"
           class="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
       </label>
@@ -219,9 +219,6 @@ onUnmounted(() => {
             >
               {{ statusLabel(order.status) }}
             </span>
-            <span v-if="order.customerTail" class="text-xs text-slate-400"
-              >尾号 {{ order.customerTail }}</span
-            >
           </div>
           <div class="flex items-center gap-3">
             <span class="text-sm font-semibold text-slate-900">{{

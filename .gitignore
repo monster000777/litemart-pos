@@ -19,6 +19,7 @@ logs
 .idea
 *.db
 *.db-journal
+*.db.bak_*
 
 # Local env files
 .env

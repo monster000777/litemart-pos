@@ -10,7 +10,6 @@ export type CreateOrderItemInput = {
 
 export type CreateOrderInput = {
   items?: CreateOrderItemInput[]
-  customerTail?: string
   memberId?: string
   pointsToUse?: number
 }
@@ -19,7 +18,6 @@ export type CreatedOrderResult = {
   id: string
   orderNo: string
   status: string
-  customerTail: string | null
   createdAt: Date
   totalAmount: number
   pointsUsed: number
@@ -36,7 +34,11 @@ export type CreatedOrderResult = {
 }
 
 const MAX_ORDER_NO_RETRY = 3
-const CUSTOMER_TAIL_PATTERN = /^\d{4}$/
+
+const getEffectiveUnitPrice = (
+  product: { price: Prisma.Decimal | number; memberPrice: Prisma.Decimal | number | null },
+  memberId?: string
+) => (memberId && product.memberPrice != null ? Number(product.memberPrice) : Number(product.price))
 
 const buildOrderNo = () => {
   const now = new Date()
@@ -48,21 +50,6 @@ const buildOrderNo = () => {
 }
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100
-
-const normalizeCustomerTail = (value: string | undefined) => {
-  const normalized = value?.trim() ?? ''
-  if (!normalized) {
-    return null
-  }
-  if (!CUSTOMER_TAIL_PATTERN.test(normalized)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bad Request',
-      message: '手机号尾号必须为 4 位数字'
-    })
-  }
-  return normalized
-}
 
 const normalizeItems = (inputItems: CreateOrderItemInput[]) => {
   const mergedMap = new Map<string, number>()
@@ -86,7 +73,6 @@ const normalizeItems = (inputItems: CreateOrderItemInput[]) => {
 
 export const createOrderAtomic = async (input: CreateOrderInput): Promise<CreatedOrderResult> => {
   const inputItems = input.items ?? []
-  const customerTail = normalizeCustomerTail(input.customerTail)
   const pointsToUse = Math.max(0, Math.floor(input.pointsToUse ?? 0))
 
   if (!inputItems.length) {
@@ -145,10 +131,7 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
             })
           }
 
-          const unitPrice =
-            input.memberId && product.memberPrice != null
-              ? Number(product.memberPrice)
-              : Number(product.price)
+          const unitPrice = getEffectiveUnitPrice(product, input.memberId)
           subtotal += unitPrice * item.quantity
         }
 
@@ -203,7 +186,6 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
             orderNo: buildOrderNo(),
             totalAmount: roundMoney(totalAmount),
             status: ORDER_STATUS.COMPLETED,
-            customerTail,
             memberId: input.memberId ?? null,
             pointsUsed: finalPointsUsed,
             pointsEarned,
@@ -250,8 +232,7 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
         await tx.orderItem.createMany({
           data: mergedItems.map((item) => {
             const product = productMap.get(item.productId)!
-            const unitPrice =
-              input.memberId && product.memberPrice != null ? product.memberPrice : product.price
+            const unitPrice = getEffectiveUnitPrice(product, input.memberId)
             return {
               orderId: order.id,
               productId: item.productId,
@@ -263,10 +244,7 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
 
         const orderItems = mergedItems.map((item) => {
           const product = productMap.get(item.productId)!
-          const unitPrice =
-            input.memberId && product.memberPrice != null
-              ? Number(product.memberPrice)
-              : Number(product.price)
+          const unitPrice = getEffectiveUnitPrice(product, input.memberId)
           return {
             productId: item.productId,
             name: product.name,
@@ -281,7 +259,6 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
           id: order.id,
           orderNo: order.orderNo,
           status: order.status,
-          customerTail: order.customerTail,
           createdAt: order.createdAt,
           totalAmount: Number(order.totalAmount),
           pointsUsed: finalPointsUsed,

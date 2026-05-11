@@ -88,6 +88,10 @@ const addToCart = (product: ProductDto) => {
 
 const updateQuantity = (id: string, next: number) => {
   clearFeedback()
+  if (next <= 0) {
+    cartStore.removeItem(id)
+    return
+  }
   const product = products.value.find((item) => item.id === id)
   if (!product) return
   if (next > product.stock) {
@@ -108,6 +112,7 @@ const lookupMember = async () => {
     })
     if (!result) {
       cartStore.setMember(null)
+      applyProductPrices()
       errorMessage.value = '未找到会员'
       return
     }
@@ -127,6 +132,12 @@ const clearMember = () => {
   applyProductPrices()
 }
 
+const clearAllItems = () => {
+  cartStore.clearCart()
+  memberPhone.value = ''
+  clearFeedback()
+}
+
 const checkout = async () => {
   if (!canCheckout.value) return
   isSubmitting.value = true
@@ -140,7 +151,6 @@ const checkout = async () => {
           productId: item.id,
           quantity: item.quantity
         })),
-        customerTail: member.value?.phone?.slice(-4) || undefined,
         memberId: member.value?.id || undefined,
         pointsToUse: cartStore.customerInfo.pointsToUse || 0
       }
@@ -150,6 +160,7 @@ const checkout = async () => {
     toast({ title: successMessage.value, variant: 'success', duration: 2500 })
     cartStore.clearCart()
     memberPhone.value = ''
+    clearNuxtData()
     await refresh()
   } catch (err) {
     errorMessage.value = getApiErrorMessage(err, '结算失败')
@@ -227,7 +238,18 @@ const checkout = async () => {
     </div>
 
     <aside class="rounded-2xl border border-slate-100 bg-white p-6">
-      <h2 class="text-xl font-semibold text-slate-900">结算</h2>
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-xl font-semibold text-slate-900">结算</h2>
+        <button
+          v-if="cart.length"
+          type="button"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+          @click="clearAllItems"
+        >
+          <Trash2 class="h-3.5 w-3.5" />
+          清空商品
+        </button>
+      </div>
 
       <div class="mt-4 flex gap-2">
         <input

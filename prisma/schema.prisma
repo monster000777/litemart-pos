@@ -32,7 +32,6 @@ model Order {
   orderNo        String      @unique
   totalAmount    Decimal
   status         String      @default("COMPLETED")
-  customerTail   String?
   memberId       String?
   pointsUsed     Int         @default(0)
   pointsEarned   Int         @default(0)

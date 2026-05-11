@@ -28,6 +28,18 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<UpdateProductBody>(event)
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true, price: true, memberPrice: true }
+    })
+
+    if (!product) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Not Found',
+        message: '商品不存在'
+      })
+    }
 
     const data: Prisma.ProductUpdateInput = {}
     if (body.name !== undefined) {
@@ -92,6 +104,20 @@ export default defineEventHandler(async (event) => {
         data.memberPrice = memberPrice
       }
     }
+
+    const nextPrice = Number(data.price ?? product.price)
+    const nextMemberPriceValue =
+      data.memberPrice === undefined ? product.memberPrice : data.memberPrice
+    const nextMemberPrice = nextMemberPriceValue == null ? null : Number(nextMemberPriceValue)
+
+    if (nextMemberPrice != null && nextMemberPrice > nextPrice) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '会员价不能高于售价'
+      })
+    }
+
     if (body.stock !== undefined) {
       const stock = Math.floor(Number(body.stock))
       if (Number.isNaN(stock) || stock < 0) {
@@ -123,18 +149,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const product = await prisma.product.update({
+    const updatedProduct = await prisma.product.update({
       where: { id },
       data
     })
 
     await writeAuditLog(
       AUDIT_ACTIONS.PRODUCT_UPDATE,
-      `更新商品 ${product.name} (${product.sku})`,
+      `更新商品 ${updatedProduct.name} (${updatedProduct.sku})`,
       getClientIp(event)
     )
 
-    return toProductResponse(product)
+    return toProductResponse(updatedProduct)
   } catch (error) {
     if (error instanceof H3Error) {
       throw error

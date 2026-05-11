@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (search) {
-    where.OR = [{ orderNo: { contains: search } }, { customerTail: { contains: search } }]
+    where.OR = [{ orderNo: { contains: search } }]
   }
 
   if (dateFrom || dateTo) {
@@ -99,7 +99,6 @@ export default defineEventHandler(async (event) => {
       orderNo: order.orderNo,
       totalAmount: Number(order.totalAmount),
       status: order.status,
-      customerTail: order.customerTail,
       createdAt: order.createdAt,
       items: order.items.map((item) => ({
         id: item.id,

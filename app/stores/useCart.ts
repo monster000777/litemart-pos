@@ -6,18 +6,19 @@ type CartState = {
   customerInfo: CartCustomerInfoDto
 }
 
+const createCustomerInfo = (): CartCustomerInfoDto => ({
+  memberId: '',
+  memberName: null,
+  memberPhone: '',
+  memberPoints: 0,
+  memberLevel: '',
+  pointsToUse: 0
+})
+
 export const useCartStore = defineStore('cart', {
   state: (): CartState => ({
     items: [],
-    customerInfo: {
-      customerTail: '',
-      memberId: '',
-      memberName: null,
-      memberPhone: '',
-      memberPoints: 0,
-      memberLevel: '',
-      pointsToUse: 0
-    }
+    customerInfo: createCustomerInfo()
   }),
   actions: {
     addItem(product: ProductDto) {
@@ -48,13 +49,7 @@ export const useCartStore = defineStore('cart', {
     },
     clearCart() {
       this.items = []
-      this.customerInfo.customerTail = ''
-      this.customerInfo.memberId = ''
-      this.customerInfo.memberName = null
-      this.customerInfo.memberPhone = ''
-      this.customerInfo.memberPoints = 0
-      this.customerInfo.memberLevel = ''
-      this.customerInfo.pointsToUse = 0
+      this.customerInfo = createCustomerInfo()
     },
     updateQuantity(productId: string, quantity: number) {
       const item = this.items.find((entry) => entry.id === productId)
@@ -66,9 +61,6 @@ export const useCartStore = defineStore('cart', {
         return
       }
       item.quantity = Math.floor(quantity)
-    },
-    setCustomerTail(value: string) {
-      this.customerInfo.customerTail = value.replace(/\D/g, '').slice(-4)
     },
     setMember(
       member?: {
@@ -84,7 +76,6 @@ export const useCartStore = defineStore('cart', {
       this.customerInfo.memberPhone = member?.phone ?? ''
       this.customerInfo.memberPoints = member?.points ?? 0
       this.customerInfo.memberLevel = member?.level ?? ''
-      this.customerInfo.customerTail = member?.phone?.slice(-4) ?? this.customerInfo.customerTail
       this.customerInfo.pointsToUse = 0
     },
     setPointsToUse(points: number) {

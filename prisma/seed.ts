@@ -296,7 +296,6 @@ async function main() {
     data: {
       orderNo: buildOrderNo('LMSEED', 0),
       status: ORDER_STATUS.COMPLETED,
-      customerTail: seededCustomers[1].phone.slice(-4),
       memberId: seededCustomers[1].id,
       totalAmount: 15.2,
       pointsUsed: 0,
@@ -348,7 +347,6 @@ async function main() {
     data: {
       orderNo: buildOrderNo('LMSEED', 1),
       status: ORDER_STATUS.REFUNDED,
-      customerTail: seededCustomers[2].phone.slice(-4),
       memberId: seededCustomers[2].id,
       totalAmount: 9.5,
       pointsUsed: 200,

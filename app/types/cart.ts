@@ -9,7 +9,6 @@ export type CartItemDto = {
 }
 
 export type CartCustomerInfoDto = {
-  customerTail: string
   memberId?: string
   memberName?: string | null
   memberPhone?: string

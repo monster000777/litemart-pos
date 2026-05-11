@@ -58,6 +58,9 @@ export const canAccessApiRoute = (role: UserRole, pathname: string, method: stri
   }
 
   if (pathname.startsWith('/api/customers')) {
+    if (pathname === '/api/customers/lookup') {
+      return isReadMethod(method)
+    }
     return roleHasAtLeast(role, USER_ROLES.MANAGER)
   }
 
