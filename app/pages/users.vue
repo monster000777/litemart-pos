@@ -3,12 +3,12 @@ import {
   Crown,
   KeyRound,
   LoaderCircle,
+  Pencil,
   Plus,
   ShieldCheck,
+  Trash2,
   UserCog,
-  UserRound,
-  Pencil,
-  Trash2
+  UserRound
 } from 'lucide-vue-next'
 import Sheet from '~/components/ui/sheet/Sheet.vue'
 import SheetContent from '~/components/ui/sheet/SheetContent.vue'
@@ -150,9 +150,7 @@ const openEditSheet = (user: AuthUserDto) => {
 }
 
 const submitCreate = async () => {
-  if (submitting.value) {
-    return
-  }
+  if (submitting.value) return
 
   submitting.value = true
   createError.value = ''
@@ -178,9 +176,7 @@ const submitCreate = async () => {
 }
 
 const submitEdit = async () => {
-  if (submitting.value || !editTarget.value) {
-    return
-  }
+  if (submitting.value || !editTarget.value) return
 
   submitting.value = true
   editError.value = ''
@@ -204,9 +200,7 @@ const submitEdit = async () => {
 }
 
 const toggleRole = async (user: AuthUserDto) => {
-  if (mutatingId.value) {
-    return
-  }
+  if (mutatingId.value) return
 
   const nextRole =
     user.role === USER_ROLES.ADMIN
@@ -222,7 +216,7 @@ const toggleRole = async (user: AuthUserDto) => {
       body: { role: nextRole }
     })
     toast({
-      title: `${user.name} 已切换为${ROLE_LABELS[nextRole]}`,
+      title: `${user.name} 已切换为 ${ROLE_LABELS[nextRole]}`,
       variant: 'success',
       duration: 3000
     })
@@ -235,9 +229,7 @@ const toggleRole = async (user: AuthUserDto) => {
 }
 
 const toggleStatus = async (user: AuthUserDto) => {
-  if (mutatingId.value) {
-    return
-  }
+  if (mutatingId.value) return
 
   const nextStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
   mutatingId.value = user.id
@@ -260,14 +252,10 @@ const toggleStatus = async (user: AuthUserDto) => {
 }
 
 const deleteUser = async (user: AuthUserDto) => {
-  if (mutatingId.value || !canDelete(user)) {
-    return
-  }
+  if (mutatingId.value || !canDelete(user)) return
 
   const confirmed = window.confirm(`确认删除账号「${user.name}」？此操作不可恢复。`)
-  if (!confirmed) {
-    return
-  }
+  if (!confirmed) return
 
   mutatingId.value = user.id
   try {
@@ -288,9 +276,7 @@ const deleteUser = async (user: AuthUserDto) => {
 }
 
 const submitResetPin = async () => {
-  if (resetting.value || !resetTarget.value) {
-    return
-  }
+  if (resetting.value || !resetTarget.value) return
 
   resetting.value = true
   resetError.value = ''
@@ -378,7 +364,7 @@ const submitResetPin = async () => {
             <TableHead>账号</TableHead>
             <TableHead>角色</TableHead>
             <TableHead>状态</TableHead>
-            <TableHead>备注</TableHead>
+            <TableHead>说明</TableHead>
             <TableHead>操作</TableHead>
           </TableRow>
         </TableHeader>
@@ -455,10 +441,10 @@ const submitResetPin = async () => {
                   </button>
                   <button
                     type="button"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="mutatingId === user.id || !canDemoteOrDisable(user)"
                     :title="
-                      !canDemoteOrDisable(user) ? '无法收缩当前账号或最后一个启用的管理员权限' : ''
+                      !canDemoteOrDisable(user) ? '无法调整当前账号或最后一个启用中的管理员' : ''
                     "
                     @click="toggleRole(user)"
                   >
@@ -469,10 +455,10 @@ const submitResetPin = async () => {
                   </button>
                   <button
                     type="button"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="mutatingId === user.id || !canDemoteOrDisable(user)"
                     :title="
-                      !canDemoteOrDisable(user) ? '无法停用当前账号或最后一个启用的管理员' : ''
+                      !canDemoteOrDisable(user) ? '无法停用当前账号或最后一个启用中的管理员' : ''
                     "
                     @click="toggleStatus(user)"
                   >
@@ -488,9 +474,9 @@ const submitResetPin = async () => {
                   </button>
                   <button
                     type="button"
-                    class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                     :disabled="mutatingId === user.id || !canDelete(user)"
-                    :title="!canDelete(user) ? '无法删除当前账号或最后一个启用的管理员' : ''"
+                    :title="!canDelete(user) ? '无法删除当前账号或最后一个启用中的管理员' : ''"
                     @click="deleteUser(user)"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
@@ -514,7 +500,9 @@ const submitResetPin = async () => {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>新增账号</SheetTitle>
-          <SheetDescription>创建一个新的收银员或店长账号，并分配独立 PIN。</SheetDescription>
+          <SheetDescription
+            >创建一个新的收银员、店长或管理员账号，并分配独立 PIN。</SheetDescription
+          >
         </SheetHeader>
 
         <form class="mt-6 space-y-4" @submit.prevent="submitCreate">
@@ -599,9 +587,9 @@ const submitResetPin = async () => {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>重置账号 PIN</SheetTitle>
-          <SheetDescription>
-            为「{{ resetTarget?.name || '-' }}」设置新的 6 位 PIN。重置后该账号将使用新 PIN 登录。
-          </SheetDescription>
+          <SheetDescription
+            >为「{{ resetTarget?.name || '-' }}」设置新的 6 位 PIN。</SheetDescription
+          >
         </SheetHeader>
 
         <form class="mt-6 space-y-4" @submit.prevent="submitResetPin">
@@ -663,7 +651,7 @@ const submitResetPin = async () => {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>编辑账号</SheetTitle>
-          <SheetDescription> 编辑「{{ editTarget?.name || '-' }}」的基本信息。 </SheetDescription>
+          <SheetDescription>编辑「{{ editTarget?.name || '-' }}」的基本信息。</SheetDescription>
         </SheetHeader>
 
         <form class="mt-6 space-y-4" @submit.prevent="submitEdit">
@@ -685,10 +673,10 @@ const submitResetPin = async () => {
               :disabled="!!editTarget && !canDemoteOrDisable(editTarget)"
               :title="
                 !!editTarget && !canDemoteOrDisable(editTarget)
-                  ? '无法收缩当前账号或最后一个启用的管理员权限'
+                  ? '无法调整当前账号或最后一个启用中的管理员'
                   : ''
               "
-              class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed"
+              class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50"
             >
               <option :value="USER_ROLES.CASHIER">{{ ROLE_LABELS[USER_ROLES.CASHIER] }}</option>
               <option :value="USER_ROLES.MANAGER">{{ ROLE_LABELS[USER_ROLES.MANAGER] }}</option>
@@ -717,7 +705,7 @@ const submitResetPin = async () => {
               :disabled="submitting || !editForm.name.trim()"
             >
               <LoaderCircle v-if="submitting" class="h-4 w-4 animate-spin" />
-              <span>{{ submitting ? '保存中...' : '保存更改' }}</span>
+              <span>{{ submitting ? '保存中...' : '保存修改' }}</span>
             </button>
           </SheetFooter>
         </form>

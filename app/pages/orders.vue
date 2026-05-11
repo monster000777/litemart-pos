@@ -6,6 +6,8 @@ import type { OrderListResponse } from '~/types/order'
 
 const refundingId = ref('')
 const { toast } = useToast()
+const { getApiErrorMessage } = useApiError()
+const { formatPrice, formatDate } = useFormat()
 
 const search = ref('')
 const debouncedSearch = ref('')
@@ -16,9 +18,6 @@ const currentPage = ref(1)
 const pageSize = 20
 const expandedOrderId = ref<string | null>(null)
 
-const { getApiErrorMessage } = useApiError()
-
-// 搜索防抖 300ms
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(search, (val) => {
   if (searchTimer) clearTimeout(searchTimer)
@@ -27,7 +26,6 @@ watch(search, (val) => {
   }, 300)
 })
 
-// 筛选条件变化时重置页码
 watch([debouncedSearch, statusFilter, dateFrom, dateTo], () => {
   currentPage.value = 1
 })
@@ -50,10 +48,15 @@ const { data, pending, error } = await useAsyncData(
 const orders = computed(() => data.value?.orders ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const totalPages = computed(() => Math.ceil(total.value / pageSize))
-
 const errorMsg = computed(() =>
   error.value ? getApiErrorMessage(error.value, '订单加载失败') : ''
 )
+
+const statusLabel = (status: string) => (status === 'REFUNDED' ? '已退款' : '已完成')
+const statusClass = (status: string) =>
+  status === 'REFUNDED'
+    ? 'bg-rose-50 text-rose-600 border-rose-100'
+    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
 
 const toggleExpand = (id: string) => {
   expandedOrderId.value = expandedOrderId.value === id ? null : id
@@ -74,20 +77,12 @@ const goPage = (page: number) => {
   }
 }
 
-const { formatPrice, formatDate } = useFormat()
-
-const statusLabel = (s: string) => (s === 'REFUNDED' ? '已退款' : '已完成')
-const statusClass = (s: string) =>
-  s === 'REFUNDED'
-    ? 'bg-rose-50 text-rose-600 border-rose-100'
-    : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-
 const exportCsv = () => {
   if (!orders.value.length) return
   const header = '订单号,状态,总金额,客户尾号,下单时间,商品明细'
-  const rows = orders.value.map((o) => {
-    const items = o.items.map((i) => `${i.product.name}×${i.quantity}`).join('; ')
-    return `${o.orderNo}\t,${statusLabel(o.status)},${o.totalAmount},${o.customerTail || '-'},${formatDate(o.createdAt)}\t,"${items}"`
+  const rows = orders.value.map((order) => {
+    const items = order.items.map((item) => `${item.product.name}x${item.quantity}`).join('; ')
+    return `${order.orderNo},${statusLabel(order.status)},${order.totalAmount},${order.customerTail || '-'},${formatDate(order.createdAt)},"${items}"`
   })
   const csv = '\uFEFF' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -103,11 +98,12 @@ const refundOrder = async (orderId: string, orderNo: string) => {
   if (refundingId.value) return
   const ok = window.confirm(`确认退款订单「${orderNo}」？库存将自动恢复。`)
   if (!ok) return
+
   refundingId.value = orderId
   try {
     await $fetch(`/api/orders/${orderId}/refund`, { method: 'POST' })
     toast({ title: `订单 ${orderNo} 已退款`, variant: 'success', duration: 3000 })
-    clearNuxtData() // 清空全局缓存，确保切换页面时同步
+    clearNuxtData()
     await refreshNuxtData('orders')
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '退款失败'), variant: 'error', duration: 3000 })
@@ -142,7 +138,6 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- 筛选栏 -->
     <div class="flex flex-wrap items-end gap-3">
       <label
         class="flex flex-1 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2"
@@ -151,7 +146,7 @@ onUnmounted(() => {
         <input
           v-model="search"
           type="text"
-          placeholder="订单号 / 客户尾号"
+          placeholder="搜索订单号 / 客户尾号"
           class="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
       </label>
@@ -183,7 +178,6 @@ onUnmounted(() => {
       </button>
     </div>
 
-    <!-- 错误提示 -->
     <div
       v-if="errorMsg"
       class="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-center text-sm text-rose-600"
@@ -191,7 +185,6 @@ onUnmounted(() => {
       {{ errorMsg }}
     </div>
 
-    <!-- 加载骨架 -->
     <div v-if="pending" class="space-y-3">
       <div v-for="i in 5" :key="i" class="rounded-2xl border border-slate-100 bg-white p-4">
         <div class="flex items-center justify-between">
@@ -204,14 +197,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 订单列表 -->
     <div v-if="!pending && orders.length" class="space-y-3">
       <div
         v-for="order in orders"
         :key="order.id"
         class="rounded-2xl border border-slate-100 bg-white transition-all"
       >
-        <!-- 订单头部 -->
         <button
           type="button"
           class="flex w-full items-center justify-between p-4 text-left"
@@ -228,9 +219,9 @@ onUnmounted(() => {
             >
               {{ statusLabel(order.status) }}
             </span>
-            <span v-if="order.customerTail" class="text-xs text-slate-400">
-              尾号 {{ order.customerTail }}
-            </span>
+            <span v-if="order.customerTail" class="text-xs text-slate-400"
+              >尾号 {{ order.customerTail }}</span
+            >
           </div>
           <div class="flex items-center gap-3">
             <span class="text-sm font-semibold text-slate-900">{{
@@ -243,7 +234,6 @@ onUnmounted(() => {
           </div>
         </button>
 
-        <!-- 订单明细（展开） -->
         <div v-if="expandedOrderId === order.id" class="border-t border-slate-100 px-4 py-3">
           <table class="w-full text-sm">
             <thead>
@@ -267,7 +257,7 @@ onUnmounted(() => {
               </tr>
             </tbody>
           </table>
-          <!-- 退款按钮 -->
+
           <div
             v-if="order.status === 'COMPLETED'"
             class="mt-3 flex justify-end border-t border-slate-100 pt-3"
@@ -286,7 +276,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 空状态 -->
     <div
       v-if="!pending && !orders.length && !errorMsg"
       class="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-sm text-slate-500"
@@ -294,7 +283,6 @@ onUnmounted(() => {
       暂无订单记录
     </div>
 
-    <!-- 分页 -->
     <div v-if="totalPages > 1" class="flex items-center justify-center gap-2">
       <button
         type="button"

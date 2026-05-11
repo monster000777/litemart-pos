@@ -16,6 +16,11 @@ export const AUDIT_ACTIONS = {
   PRODUCT_CREATE: 'PRODUCT_CREATE',
   PRODUCT_UPDATE: 'PRODUCT_UPDATE',
   PRODUCT_DELETE: 'PRODUCT_DELETE',
+  MEMBER_CREATE: 'MEMBER_CREATE',
+  MEMBER_UPDATE: 'MEMBER_UPDATE',
+  MEMBER_DELETE: 'MEMBER_DELETE',
+  MEMBER_POINTS_ADD: 'MEMBER_POINTS_ADD',
+  MEMBER_POINTS_DEDUCT: 'MEMBER_POINTS_DEDUCT',
   SUPPLIER_CREATE: 'SUPPLIER_CREATE',
   SUPPLIER_UPDATE: 'SUPPLIER_UPDATE',
   SUPPLIER_DELETE: 'SUPPLIER_DELETE',
@@ -36,7 +41,6 @@ export const writeAuditLog = async (action: AuditAction, detail?: string, ip?: s
       }
     })
   } catch (error) {
-    // 审计日志写入失败不应影响主流程
     console.error(`[AuditLog] Failed to write: ${action}`, error)
   }
 }

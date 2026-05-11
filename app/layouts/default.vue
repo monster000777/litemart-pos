@@ -5,6 +5,7 @@ import {
   Boxes,
   Building2,
   ClipboardList,
+  IdCard,
   LogOut,
   MonitorPlay,
   ScrollText,
@@ -20,12 +21,13 @@ const authRole = useState<UserRole | null>('auth:role', () => null)
 const alertCount = ref(0)
 
 const navItems = [
-  { label: 'Checkout', title: '收银工作台', to: '/', icon: ShoppingCart },
+  { label: 'Checkout', title: '收银台', to: '/', icon: ShoppingCart },
   { label: 'Orders', title: '订单历史', to: '/orders', icon: ClipboardList },
-  { label: 'Inventory', title: '库存矩阵', to: '/inventory', icon: Boxes, badge: true },
+  { label: 'Inventory', title: '库存管理', to: '/inventory', icon: Boxes, badge: true },
+  { label: 'Members', title: '会员管理', to: '/members', icon: IdCard },
   { label: 'Suppliers', title: '供应商管理', to: '/suppliers', icon: Building2 },
   { label: 'Insights', title: '经营看板', to: '/insights', icon: BarChart3 },
-  { label: 'Copilot', title: '智能助理', to: '/ai', icon: Bot },
+  { label: 'Copilot', title: '智能助手', to: '/ai', icon: Bot },
   { label: 'Users', title: '账号管理', to: '/users', icon: Users },
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
   { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
@@ -38,9 +40,7 @@ const visibleNavItems = computed(() =>
 const roleLabel = computed(() => (authRole.value ? ROLE_LABELS[authRole.value] : ''))
 
 const isActive = (to: string) => {
-  if (to === '/') {
-    return route.path === '/'
-  }
+  if (to === '/') return route.path === '/'
   return route.path.startsWith(to)
 }
 
@@ -65,15 +65,10 @@ onUnmounted(() => {
 })
 
 const logout = async () => {
-  if (loggingOut.value) {
-    return
-  }
-
+  if (loggingOut.value) return
   loggingOut.value = true
   try {
-    await $fetch('/api/auth/logout', {
-      method: 'POST'
-    })
+    await $fetch('/api/auth/logout', { method: 'POST' })
   } finally {
     authState.value = false
     authRole.value = null

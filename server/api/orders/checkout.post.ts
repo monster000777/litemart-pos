@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
 
     await writeAuditLog(
       AUDIT_ACTIONS.CHECKOUT,
-      `订单 ${result.orderNo}，金额 ¥${result.totalAmount.toFixed(2)}`,
+      `订单 ${result.orderNo}，金额 ￥${result.totalAmount.toFixed(2)}`,
       getClientIp(event)
     )
 
@@ -18,6 +18,9 @@ export default defineEventHandler(async (event) => {
       id: result.id,
       orderNo: result.orderNo,
       totalAmount: result.totalAmount,
+      pointsEarned: result.pointsEarned,
+      pointsUsed: result.pointsUsed,
+      discountAmount: result.discountAmount,
       status: result.status,
       createdAt: result.createdAt
     }
@@ -28,7 +31,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
-      message: '核销失败，请稍后重试'
+      message: '结算失败，请稍后重试'
     })
   }
 })

@@ -3,16 +3,6 @@ import { ORDER_STATUS } from '../shared/constants/order'
 
 const prisma = new PrismaClient()
 
-type SeedProductTemplate = {
-  name: string
-  category: string
-  priceRange: [number, number]
-  costPriceRange: [number, number]
-  stockRange: [number, number]
-  minStockRange: [number, number]
-  supplierIndex: number
-}
-
 type SeedSupplier = {
   name: string
   contactName: string
@@ -21,26 +11,44 @@ type SeedSupplier = {
   address: string
 }
 
+type SeedProductTemplate = {
+  name: string
+  category: string
+  price: number
+  memberPrice: number | null
+  costPrice: number
+  stock: number
+  minStock: number
+  supplierIndex: number
+}
+
+type SeedCustomer = {
+  phone: string
+  name: string
+  points: number
+  level: string
+}
+
 const suppliers: SeedSupplier[] = [
   {
     name: '华润饮料批发',
     contactName: '张经理',
     phone: '13800138001',
     email: 'zhang@huarun-drink.com',
-    address: '广州市天河区天河路385号'
+    address: '广州市天河区天河路 185 号'
   },
   {
     name: '百味零食供应链',
     contactName: '李主管',
     phone: '13900139002',
     email: 'li@baiwei-snack.com',
-    address: '深圳市南山区科技园南路66号'
+    address: '深圳市南山区科技园南路 16 号'
   },
   {
     name: '得力文具经销商',
     contactName: '王业务',
     phone: '13700137003',
-    email: 'wang@deler-supply.com',
+    email: 'wang@deli-supply.com',
     address: '上海市浦东新区张江高科技园区'
   },
   {
@@ -63,114 +71,113 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '元气森林气泡水',
     category: '饮料',
-    priceRange: [4.5, 6.5],
-    costPriceRange: [2.5, 3.5],
-    stockRange: [20, 50],
-    minStockRange: [8, 16],
+    price: 6,
+    memberPrice: 5.5,
+    costPrice: 3.2,
+    stock: 36,
+    minStock: 10,
     supplierIndex: 0
   },
   {
     name: '乐事原味薯片',
     category: '零食',
-    priceRange: [5.0, 7.5],
-    costPriceRange: [3.0, 4.0],
-    stockRange: [18, 42],
-    minStockRange: [8, 14],
+    price: 7,
+    memberPrice: 6.2,
+    costPrice: 3.8,
+    stock: 28,
+    minStock: 8,
     supplierIndex: 1
   },
   {
     name: '得力 0.5mm 黑色签字笔',
     category: '文具',
-    priceRange: [2.0, 3.5],
-    costPriceRange: [0.8, 1.5],
-    stockRange: [30, 80],
-    minStockRange: [12, 24],
+    price: 3,
+    memberPrice: 2.5,
+    costPrice: 1.2,
+    stock: 60,
+    minStock: 15,
     supplierIndex: 2
   },
   {
-    name: '农夫山泉550ml',
+    name: '农夫山泉 550ml',
     category: '饮料',
-    priceRange: [2.0, 3.5],
-    costPriceRange: [1.0, 1.5],
-    stockRange: [24, 60],
-    minStockRange: [10, 18],
+    price: 3,
+    memberPrice: 2.5,
+    costPrice: 1.3,
+    stock: 45,
+    minStock: 12,
     supplierIndex: 0
   },
   {
     name: '康师傅红烧牛肉面',
     category: '速食',
-    priceRange: [4.0, 6.0],
-    costPriceRange: [2.5, 3.5],
-    stockRange: [16, 40],
-    minStockRange: [6, 12],
+    price: 5,
+    memberPrice: 4.5,
+    costPrice: 2.9,
+    stock: 30,
+    minStock: 8,
     supplierIndex: 4
   },
   {
-    name: '伊利纯牛奶250ml',
+    name: '伊利纯牛奶 250ml',
     category: '乳品',
-    priceRange: [3.0, 4.8],
-    costPriceRange: [1.8, 2.5],
-    stockRange: [20, 45],
-    minStockRange: [8, 14],
+    price: 4,
+    memberPrice: 3.5,
+    costPrice: 2.2,
+    stock: 32,
+    minStock: 10,
     supplierIndex: 3
   },
   {
-    name: '晨光A5软抄本',
+    name: '晨光 A5 软抄本',
     category: '文具',
-    priceRange: [4.0, 6.5],
-    costPriceRange: [1.5, 2.5],
-    stockRange: [20, 50],
-    minStockRange: [8, 15],
+    price: 5,
+    memberPrice: null,
+    costPrice: 2.1,
+    stock: 42,
+    minStock: 10,
     supplierIndex: 2
   },
   {
     name: '德芙丝滑巧克力',
     category: '零食',
-    priceRange: [6.0, 9.5],
-    costPriceRange: [3.5, 5.0],
-    stockRange: [12, 36],
-    minStockRange: [6, 12],
+    price: 8,
+    memberPrice: 7,
+    costPrice: 4.5,
+    stock: 22,
+    minStock: 6,
     supplierIndex: 1
   }
 ]
 
-const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-const randomPrice = (min: number, max: number) =>
-  Number((Math.random() * (max - min) + min).toFixed(2))
-
-const buildSku = (index: number, used: Set<string>) => {
-  let sku = ''
-  do {
-    const suffix = randomInt(1000, 9999)
-    sku = `LM-CAMPUS-${String(index + 1).padStart(2, '0')}-${suffix}`
-  } while (used.has(sku))
-  used.add(sku)
-  return sku
-}
-
-const getYesterdayAt = (hour: number, minute: number) => {
-  const now = new Date()
-  return new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - 1,
-    hour,
-    minute,
-    randomInt(0, 59)
-  )
-}
+const customers: SeedCustomer[] = [
+  {
+    phone: '13800138000',
+    name: '测试会员',
+    points: 320,
+    level: 'NORMAL'
+  },
+  {
+    phone: '13911112222',
+    name: '王晓琳',
+    points: 980,
+    level: 'SILVER'
+  },
+  {
+    phone: '13799998888',
+    name: '陈志远',
+    points: 1680,
+    level: 'GOLD'
+  }
+]
 
 const getDaysAgoAt = (days: number, hour: number, minute: number) => {
   const now = new Date()
-  return new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - days,
-    hour,
-    minute,
-    randomInt(0, 59)
-  )
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - days, hour, minute, 0)
 }
+
+const buildSku = (index: number) =>
+  `LM-CAMPUS-${String(index + 1).padStart(2, '0')}-${String(1000 + index)}`
 
 const buildOrderNo = (prefix: string, idx: number) => {
   const now = new Date()
@@ -181,24 +188,22 @@ const buildOrderNo = (prefix: string, idx: number) => {
 async function main() {
   console.log('Clearing existing data...')
   await prisma.$transaction([
+    prisma.pointLog.deleteMany(),
     prisma.purchaseItem.deleteMany(),
     prisma.purchaseOrder.deleteMany(),
     prisma.orderItem.deleteMany(),
     prisma.order.deleteMany(),
+    prisma.customer.deleteMany(),
     prisma.product.deleteMany(),
     prisma.supplier.deleteMany()
   ])
 
   console.log('Seeding suppliers...')
   const seededSuppliers = await Promise.all(
-    suppliers.map((s) =>
+    suppliers.map((supplier) =>
       prisma.supplier.create({
         data: {
-          name: s.name,
-          contactName: s.contactName,
-          phone: s.phone,
-          email: s.email,
-          address: s.address,
+          ...supplier,
           status: 'ACTIVE'
         }
       })
@@ -206,174 +211,202 @@ async function main() {
   )
 
   console.log('Seeding products...')
-  const usedSkus = new Set<string>()
   const seededProducts = await Promise.all(
     productTemplates.map((template, index) =>
       prisma.product.create({
         data: {
           name: template.name,
           category: template.category,
-          sku: buildSku(index, usedSkus),
-          price: randomPrice(template.priceRange[0], template.priceRange[1]),
-          costPrice: randomPrice(template.costPriceRange[0], template.costPriceRange[1]),
-          stock: randomInt(template.stockRange[0], template.stockRange[1]),
-          minStock: randomInt(template.minStockRange[0], template.minStockRange[1]),
+          sku: buildSku(index),
+          price: template.price,
+          memberPrice: template.memberPrice,
+          costPrice: template.costPrice,
+          stock: template.stock,
+          minStock: template.minStock,
           supplierId: seededSuppliers[template.supplierIndex].id
         }
       })
     )
   )
 
-  console.log('Seeding purchase orders...')
-  const purchasePlans = [
-    {
-      supplierIndex: 0,
-      createdAt: getDaysAgoAt(7, 10, 30),
-      status: 'RECEIVED',
-      items: [
-        { productIndex: 0, quantity: 50, unitCost: 3.0 },
-        { productIndex: 3, quantity: 100, unitCost: 1.2 }
-      ]
-    },
-    {
-      supplierIndex: 1,
-      createdAt: getDaysAgoAt(5, 14, 20),
-      status: 'RECEIVED',
-      items: [
-        { productIndex: 1, quantity: 30, unitCost: 3.5 },
-        { productIndex: 7, quantity: 20, unitCost: 4.2 }
-      ]
-    },
-    {
-      supplierIndex: 2,
-      createdAt: getDaysAgoAt(3, 9, 15),
-      status: 'RECEIVED',
-      items: [
-        { productIndex: 2, quantity: 100, unitCost: 1.0 },
-        { productIndex: 6, quantity: 50, unitCost: 2.0 }
-      ]
-    },
-    {
-      supplierIndex: 3,
-      createdAt: getYesterdayAt(11, 0),
-      status: 'PENDING',
-      items: [{ productIndex: 5, quantity: 40, unitCost: 2.2 }]
-    },
-    {
-      supplierIndex: 0,
-      createdAt: getYesterdayAt(16, 30),
-      status: 'PENDING',
-      items: [
-        { productIndex: 0, quantity: 30, unitCost: 3.0 },
-        { productIndex: 3, quantity: 60, unitCost: 1.2 }
-      ]
-    }
-  ]
-
-  for (let i = 0; i < purchasePlans.length; i++) {
-    const plan = purchasePlans[i]
-    const totalAmount = Number(
-      plan.items.reduce((sum, item) => sum + item.unitCost * item.quantity, 0).toFixed(2)
+  console.log('Seeding customers...')
+  const seededCustomers = await Promise.all(
+    customers.map((customer) =>
+      prisma.customer.create({
+        data: customer
+      })
     )
+  )
 
-    await prisma.purchaseOrder.create({
-      data: {
-        orderNo: buildOrderNo('PO', i),
-        supplierId: seededSuppliers[plan.supplierIndex].id,
-        totalAmount,
-        status: plan.status,
-        notes: i === 3 ? '急单，请优先处理' : null,
-        createdAt: plan.createdAt,
-        updatedAt: plan.createdAt,
-        items: {
-          create: plan.items.map((item) => ({
-            productId: seededProducts[item.productIndex].id,
-            quantity: item.quantity,
-            unitCost: item.unitCost
-          }))
-        }
+  console.log('Seeding purchase orders...')
+  await prisma.purchaseOrder.create({
+    data: {
+      orderNo: buildOrderNo('PO', 0),
+      supplierId: seededSuppliers[0].id,
+      totalAmount: 174,
+      status: 'RECEIVED',
+      notes: '首批饮料补货',
+      createdAt: getDaysAgoAt(7, 10, 30),
+      updatedAt: getDaysAgoAt(7, 10, 30),
+      items: {
+        create: [
+          {
+            productId: seededProducts[0].id,
+            quantity: 30,
+            unitCost: 3.2
+          },
+          {
+            productId: seededProducts[3].id,
+            quantity: 60,
+            unitCost: 1.3
+          }
+        ]
       }
-    })
-  }
+    }
+  })
+
+  await prisma.purchaseOrder.create({
+    data: {
+      orderNo: buildOrderNo('PO', 1),
+      supplierId: seededSuppliers[1].id,
+      totalAmount: 186,
+      status: 'PENDING',
+      notes: '零食周补货',
+      createdAt: getDaysAgoAt(2, 15, 0),
+      updatedAt: getDaysAgoAt(2, 15, 0),
+      items: {
+        create: [
+          {
+            productId: seededProducts[1].id,
+            quantity: 24,
+            unitCost: 3.8
+          },
+          {
+            productId: seededProducts[7].id,
+            quantity: 18,
+            unitCost: 4.5
+          }
+        ]
+      }
+    }
+  })
 
   console.log('Seeding sales orders...')
-  const stockMap = new Map(seededProducts.map((product) => [product.id, product.stock]))
-  const pricedProducts = seededProducts.map((product) => ({
-    id: product.id,
-    name: product.name,
-    sku: product.sku,
-    price: Number(product.price)
-  }))
-
-  const orderPlans = [
-    { createdAt: getYesterdayAt(9, 18), status: ORDER_STATUS.COMPLETED, customerTail: '2841' },
-    { createdAt: getYesterdayAt(11, 42), status: ORDER_STATUS.COMPLETED, customerTail: '7305' },
-    { createdAt: getYesterdayAt(15, 9), status: ORDER_STATUS.COMPLETED, customerTail: '4419' },
-    { createdAt: getYesterdayAt(19, 26), status: ORDER_STATUS.REFUNDED, customerTail: '1186' }
-  ]
-
-  for (let i = 0; i < orderPlans.length; i += 1) {
-    const orderPlan = orderPlans[i]
-    const candidates = [...pricedProducts]
-      .sort(() => Math.random() - 0.5)
-      .filter((product) => (stockMap.get(product.id) ?? 0) > 0)
-      .slice(0, randomInt(2, 4))
-
-    const items = candidates
-      .map((product) => {
-        const available = stockMap.get(product.id) ?? 0
-        const quantity = randomInt(1, Math.min(3, available))
-        return { ...product, quantity }
-      })
-      .filter((item) => item.quantity > 0)
-
-    if (!items.length) {
-      continue
+  const completedOrder = await prisma.order.create({
+    data: {
+      orderNo: buildOrderNo('LMSEED', 0),
+      status: ORDER_STATUS.COMPLETED,
+      customerTail: seededCustomers[1].phone.slice(-4),
+      memberId: seededCustomers[1].id,
+      totalAmount: 15.2,
+      pointsUsed: 0,
+      pointsEarned: 15,
+      discountAmount: 0,
+      createdAt: getDaysAgoAt(1, 11, 20)
     }
+  })
 
-    const totalAmount = Number(
-      items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)
-    )
-
-    await prisma.$transaction(async (tx) => {
-      const order = await tx.order.create({
-        data: {
-          orderNo: buildOrderNo('LMSEED', i),
-          status: orderPlan.status,
-          customerTail: orderPlan.customerTail,
-          totalAmount,
-          createdAt: orderPlan.createdAt
-        }
-      })
-
-      await tx.orderItem.createMany({
-        data: items.map((item) => ({
-          orderId: order.id,
-          productId: item.id,
-          quantity: item.quantity,
-          unitPrice: item.price
-        }))
-      })
-
-      if (orderPlan.status === ORDER_STATUS.COMPLETED) {
-        for (const item of items) {
-          await tx.product.update({
-            where: { id: item.id },
-            data: { stock: { decrement: item.quantity } }
-          })
-          stockMap.set(item.id, (stockMap.get(item.id) ?? 0) - item.quantity)
-        }
+  await prisma.orderItem.createMany({
+    data: [
+      {
+        orderId: completedOrder.id,
+        productId: seededProducts[0].id,
+        quantity: 2,
+        unitPrice: 5.5
+      },
+      {
+        orderId: completedOrder.id,
+        productId: seededProducts[1].id,
+        quantity: 1,
+        unitPrice: 6.2
       }
-    })
-  }
+    ]
+  })
+
+  await prisma.product.update({
+    where: { id: seededProducts[0].id },
+    data: { stock: { decrement: 2 } }
+  })
+  await prisma.product.update({
+    where: { id: seededProducts[1].id },
+    data: { stock: { decrement: 1 } }
+  })
+  await prisma.customer.update({
+    where: { id: seededCustomers[1].id },
+    data: { points: { increment: 15 } }
+  })
+  await prisma.pointLog.create({
+    data: {
+      customerId: seededCustomers[1].id,
+      orderId: completedOrder.id,
+      change: 15,
+      reason: '消费积分'
+    }
+  })
+
+  const refundedOrder = await prisma.order.create({
+    data: {
+      orderNo: buildOrderNo('LMSEED', 1),
+      status: ORDER_STATUS.REFUNDED,
+      customerTail: seededCustomers[2].phone.slice(-4),
+      memberId: seededCustomers[2].id,
+      totalAmount: 9.5,
+      pointsUsed: 200,
+      pointsEarned: 11,
+      discountAmount: 2,
+      createdAt: getDaysAgoAt(1, 18, 45)
+    }
+  })
+
+  await prisma.orderItem.createMany({
+    data: [
+      {
+        orderId: refundedOrder.id,
+        productId: seededProducts[4].id,
+        quantity: 1,
+        unitPrice: 4.5
+      },
+      {
+        orderId: refundedOrder.id,
+        productId: seededProducts[5].id,
+        quantity: 2,
+        unitPrice: 3.5
+      }
+    ]
+  })
+
+  await prisma.pointLog.createMany({
+    data: [
+      {
+        customerId: seededCustomers[2].id,
+        orderId: refundedOrder.id,
+        change: -200,
+        reason: '积分抵扣'
+      },
+      {
+        customerId: seededCustomers[2].id,
+        orderId: refundedOrder.id,
+        change: 11,
+        reason: '消费积分'
+      },
+      {
+        customerId: seededCustomers[2].id,
+        orderId: refundedOrder.id,
+        change: 189,
+        reason: '退款积分回滚'
+      }
+    ]
+  })
 
   const productCount = await prisma.product.count()
   const orderCount = await prisma.order.count()
+  const customerCount = await prisma.customer.count()
   const supplierCount = await prisma.supplier.count()
   const purchaseOrderCount = await prisma.purchaseOrder.count()
 
-  console.log(`Seed completed:`)
+  console.log('Seed completed:')
   console.log(`  - ${supplierCount} suppliers`)
+  console.log(`  - ${customerCount} customers`)
   console.log(`  - ${productCount} products`)
   console.log(`  - ${orderCount} sales orders`)
   console.log(`  - ${purchaseOrderCount} purchase orders`)

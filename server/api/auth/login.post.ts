@@ -25,11 +25,10 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 码格式错误'
+        message: 'PIN 格式错误'
       })
     }
 
-    // 速率限制检查
     const limiter = getPinRateLimiter()
     const clientIp = getClientIp(event)
     const lockSeconds = limiter.check(clientIp)
@@ -61,7 +60,7 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 409,
           statusMessage: 'Conflict',
-          message: '尚未初始化管理员 PIN，请先完成注册'
+          message: '系统尚未初始化管理员 PIN，请先完成注册'
         })
       }
 
@@ -82,9 +81,7 @@ export default defineEventHandler(async (event) => {
 
     const user = await findAuthUserByPin(pin)
     if (!user) {
-      // 先记录审计日志，确保即使触发锁定也能记录本次失败
-      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, 'PIN 码错误', clientIp)
-      // 记录失败尝试
+      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, 'PIN 错误', clientIp)
       const newLockSeconds = limiter.recordFailure(clientIp)
       if (newLockSeconds !== null) {
         throw createError({
@@ -97,11 +94,10 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: 'PIN 码错误'
+        message: 'PIN 错误'
       })
     }
 
-    // 登录成功，清除限制记录
     limiter.reset(clientIp)
     await writeAuditLog(AUDIT_ACTIONS.LOGIN, `登录成功：${user.name}`, clientIp)
 

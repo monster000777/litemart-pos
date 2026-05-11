@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model Product {
@@ -13,6 +13,7 @@ model Product {
   sku             String           @unique
   image           String?
   price           Decimal
+  memberPrice     Decimal?
   costPrice       Decimal          @default(0)
   stock           Int              @default(0)
   category        String
@@ -27,13 +28,20 @@ model Product {
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  orderNo      String      @unique
-  totalAmount  Decimal
-  status       String      @default("COMPLETED")
-  customerTail String?
-  items        OrderItem[]
-  createdAt    DateTime    @default(now())
+  id             String      @id @default(cuid())
+  orderNo        String      @unique
+  totalAmount    Decimal
+  status         String      @default("COMPLETED")
+  customerTail   String?
+  memberId       String?
+  pointsUsed     Int         @default(0)
+  pointsEarned   Int         @default(0)
+  discountAmount Decimal     @default(0)
+  member         Customer?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+
+  @@index([memberId])
 }
 
 model OrderItem {
@@ -79,6 +87,33 @@ model AuditLog {
 
   @@index([action])
   @@index([createdAt])
+}
+
+model Customer {
+  id        String     @id @default(cuid())
+  phone     String     @unique
+  name      String?
+  points    Int        @default(0)
+  level     String     @default("NORMAL")
+  createdAt DateTime   @default(now())
+  orders    Order[]
+  pointLogs PointLog[]
+
+  @@index([phone])
+  @@index([level])
+}
+
+model PointLog {
+  id         String   @id @default(cuid())
+  customerId String
+  orderId    String?
+  change     Int
+  reason     String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([orderId])
 }
 
 model Supplier {

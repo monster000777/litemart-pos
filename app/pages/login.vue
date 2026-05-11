@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LoaderCircle, RotateCcw, ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, LoaderCircle, RotateCcw } from 'lucide-vue-next'
 import type { UserRole } from '~~/shared/constants/rbac'
 
 definePageMeta({
@@ -54,7 +54,6 @@ const activePin = computed({
     if (mode.value === MODE_REGISTER) {
       return registerStep.value === STEP_PIN ? registerPin.value : confirmPin.value
     }
-    // MODE_RESET
     if (resetStep.value === STEP_OLD) return resetOldPin.value
     if (resetStep.value === STEP_NEW) return resetNewPin.value
     return resetConfirmPin.value
@@ -155,8 +154,7 @@ type AuthMutationResponse = {
 
 const handleApiError = (error: unknown, fallback: string) => {
   const err = error as {
-    data?: { data?: { lockSeconds?: number }; message?: string }
-    message?: string
+    data?: { data?: { lockSeconds?: number } }
   } | null
   if (err?.data?.data?.lockSeconds) {
     startLockCountdown(err.data.data.lockSeconds)
@@ -167,7 +165,7 @@ const handleApiError = (error: unknown, fallback: string) => {
 const login = async () => {
   if (submitting.value) return
   if (loginPin.value.length !== 6) {
-    errorMessage.value = '请输入 6 位 PIN 码'
+    errorMessage.value = '请输入 6 位 PIN'
     return
   }
   submitting.value = true
@@ -227,7 +225,6 @@ const resetPin = async () => {
         confirmPin: resetConfirmPin.value
       }
     })
-    // 重置成功后切回登录模式，让用户用新 PIN 登录
     mode.value = MODE_LOGIN
     loginPin.value = ''
     resetOldPin.value = ''
@@ -257,7 +254,7 @@ const submitCurrent = async () => {
     if (registerStep.value === STEP_PIN) {
       if (registerPin.value.length !== 6) return
       registerStep.value = STEP_CONFIRM
-      helperMessage.value = '请再次输入同一 PIN 进行确认'
+      helperMessage.value = '请再次输入相同 PIN 进行确认'
       return
     }
     if (registerPin.value !== confirmPin.value) {
@@ -269,7 +266,6 @@ const submitCurrent = async () => {
     return
   }
 
-  // MODE_RESET
   if (resetStep.value === STEP_OLD) {
     if (resetOldPin.value.length !== 6) return
     resetStep.value = STEP_NEW
@@ -329,7 +325,6 @@ watch(
   }
 )
 
-// 物理键盘支持
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key >= '0' && e.key <= '9') appendDigit(e.key)
   else if (e.key === 'Backspace') removeLast()
@@ -363,7 +358,6 @@ onUnmounted(() => {
         <p class="font-mono text-2xl tracking-[0.4em] text-slate-800">{{ displayPin }}</p>
       </div>
 
-      <!-- 消息提示（互斥展示） -->
       <p
         v-if="isLocked"
         class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
@@ -430,7 +424,6 @@ onUnmounted(() => {
         <span v-else>{{ mode === MODE_LOGIN ? '进入工作台' : '继续' }}</span>
       </button>
 
-      <!-- 底部操作链接 -->
       <div class="mt-4 flex justify-center">
         <button
           v-if="mode === MODE_LOGIN && isInitialized"

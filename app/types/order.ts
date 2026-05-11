@@ -2,6 +2,9 @@ export type CheckoutResponseDto = {
   id: string
   orderNo: string
   totalAmount: number
+  pointsEarned?: number
+  pointsUsed?: number
+  discountAmount?: number
 }
 
 export type OrderItemDto = {

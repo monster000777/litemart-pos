@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 码格式错误'
+        message: 'PIN 格式错误'
       })
     }
 

@@ -3,7 +3,16 @@ import { createError } from 'h3'
 
 type ProductLike = Pick<
   Product,
-  'id' | 'name' | 'sku' | 'image' | 'category' | 'price' | 'stock' | 'minStock' | 'createdAt'
+  | 'id'
+  | 'name'
+  | 'sku'
+  | 'image'
+  | 'category'
+  | 'price'
+  | 'memberPrice'
+  | 'stock'
+  | 'minStock'
+  | 'createdAt'
 >
 
 const REMOTE_IMAGE_PATTERN = /^https?:\/\/[^\s]+$/i
@@ -50,6 +59,7 @@ export const toProductResponse = (product: ProductLike) => {
     image: product.image,
     category: product.category,
     price: Number(product.price),
+    memberPrice: product.memberPrice == null ? null : Number(product.memberPrice),
     stock: product.stock,
     minStock: product.minStock,
     createdAt: product.createdAt

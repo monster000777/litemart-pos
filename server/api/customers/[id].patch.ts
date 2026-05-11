@@ -1,31 +1,29 @@
 import { H3Error } from 'h3'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
-import { refundOrderAtomic } from '~~/server/services/order-refund-service'
+import { updateCustomer } from '~~/server/services/customer-service'
 import { getClientIp } from '~~/server/utils/request'
 
 export default defineEventHandler(async (event) => {
   try {
-    const orderId = getRouterParam(event, 'id')
-    if (!orderId) {
+    const id = getRouterParam(event, 'id')
+    if (!id) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '缺少订单 ID'
+        message: '缺少会员 ID'
       })
     }
 
-    const order = await refundOrderAtomic(orderId)
+    const body = await readBody<{ name?: string; level?: string }>(event)
+    const customer = await updateCustomer(id, body)
 
     await writeAuditLog(
-      AUDIT_ACTIONS.REFUND,
-      `退款订单 ${order.orderNo}，金额 ￥${Number(order.totalAmount).toFixed(2)}`,
+      AUDIT_ACTIONS.MEMBER_UPDATE,
+      `更新会员 ${customer.phone}`,
       getClientIp(event)
     )
 
-    return {
-      success: true,
-      orderNo: order.orderNo
-    }
+    return customer
   } catch (error) {
     if (error instanceof H3Error) {
       throw error
@@ -33,7 +31,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
-      message: '退款失败，请稍后重试'
+      message: '更新会员失败'
     })
   }
 })

@@ -38,6 +38,16 @@ const bootstrapSchema = async () => {
     }
   }
 
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Product" ADD COLUMN "memberPrice" DECIMAL
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'memberPrice')) {
+      throw error
+    }
+  }
+
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Order" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -51,6 +61,50 @@ const bootstrapSchema = async () => {
 
   await prisma.$executeRawUnsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS "Order_orderNo_key" ON "Order"("orderNo")
+  `)
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Order" ADD COLUMN "memberId" TEXT
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'memberId')) {
+      throw error
+    }
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Order" ADD COLUMN "pointsUsed" INTEGER NOT NULL DEFAULT 0
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'pointsUsed')) {
+      throw error
+    }
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Order" ADD COLUMN "pointsEarned" INTEGER NOT NULL DEFAULT 0
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'pointsEarned')) {
+      throw error
+    }
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Order" ADD COLUMN "discountAmount" DECIMAL NOT NULL DEFAULT 0
+    `)
+  } catch (error) {
+    if (!isDuplicateColumnError(error, 'discountAmount')) {
+      throw error
+    }
+  }
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Order_memberId_idx" ON "Order"("memberId")
   `)
 
   await prisma.$executeRawUnsafe(`
@@ -129,6 +183,49 @@ const bootstrapSchema = async () => {
 
   await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Customer" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "phone" TEXT NOT NULL,
+      "name" TEXT,
+      "points" INTEGER NOT NULL DEFAULT 0,
+      "level" TEXT NOT NULL DEFAULT 'NORMAL',
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "Customer_phone_key" ON "Customer"("phone")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Customer_phone_idx" ON "Customer"("phone")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "Customer_level_idx" ON "Customer"("level")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "PointLog" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "customerId" TEXT NOT NULL,
+      "orderId" TEXT,
+      "change" INTEGER NOT NULL,
+      "reason" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PointLog_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "PointLog_customerId_idx" ON "PointLog"("customerId")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "PointLog_orderId_idx" ON "PointLog"("orderId")
   `)
 
   await prisma.$executeRawUnsafe(`

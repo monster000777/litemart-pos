@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '旧 PIN 码格式错误'
+        message: '旧 PIN 格式错误'
       })
     }
 
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '新 PIN 码格式错误'
+        message: '新 PIN 格式错误'
       })
     }
 
@@ -55,7 +55,6 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 速率限制检查（必须在任何昂贵 PIN 运算之前）
     const limiter = getPinRateLimiter()
     const clientIp = getClientIp(event)
     const remainingLock = limiter.check(clientIp)
@@ -68,14 +67,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 支持两种路径：已认证（session）/ 未认证（旧 PIN 查找）
     const userId = event.context.auth?.user?.id
     let user = userId ? await findAuthUserById(userId) : null
     let pinAlreadyVerified = false
 
     if (!user) {
       user = await findAuthUserByPin(oldPin)
-      pinAlreadyVerified = !!user // findAuthUserByPin 内部已做 verifyPin
+      pinAlreadyVerified = !!user
     }
 
     if (!user || user.status !== 'ACTIVE') {
@@ -91,11 +89,10 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: '旧 PIN 码错误或账号已停用'
+        message: '旧 PIN 错误或账号已停用'
       })
     }
 
-    // 通过 session 找到用户时，仍需验证旧 PIN；通过 PIN 找到时已验证，跳过
     if (!pinAlreadyVerified) {
       const matched = await verifyPin(oldPin, user.pinHash)
       if (!matched) {
@@ -111,12 +108,11 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 401,
           statusMessage: 'Unauthorized',
-          message: '旧 PIN 码错误'
+          message: '旧 PIN 错误'
         })
       }
     }
 
-    // 验证成功，清除限制
     limiter.reset(clientIp)
 
     if (await isPinInUse(newPin, { excludeUserId: user.id })) {

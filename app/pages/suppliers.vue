@@ -1,16 +1,6 @@
 <script setup lang="ts">
 import { useAutoAnimate } from '@formkit/auto-animate/vue'
-import {
-  Building2,
-  Download,
-  LoaderCircle,
-  Pencil,
-  Phone,
-  Plus,
-  Search,
-  Trash2,
-  Truck
-} from 'lucide-vue-next'
+import { Building2, Download, Pencil, Phone, Plus, Search, Trash2, Truck } from 'lucide-vue-next'
 import Sheet from '~/components/ui/sheet/Sheet.vue'
 import SheetContent from '~/components/ui/sheet/SheetContent.vue'
 import SheetDescription from '~/components/ui/sheet/SheetDescription.vue'
@@ -45,7 +35,6 @@ const { data, pending, error, refresh } = await useAsyncData(
 const suppliers = computed(() => data.value ?? [])
 const activeCount = computed(() => suppliers.value.filter((s) => s.status === 'ACTIVE').length)
 const inactiveCount = computed(() => suppliers.value.filter((s) => s.status !== 'ACTIVE').length)
-
 const errorMsg = computed(() =>
   error.value ? getApiErrorMessage(error.value, '供应商加载失败') : ''
 )
@@ -114,17 +103,17 @@ const submitForm = async () => {
 
     if (isEditMode.value && editingId.value) {
       await $fetch(`/api/suppliers/${editingId.value}`, { method: 'PATCH', body: payload })
-      toast({ title: '供应商更新成功', variant: 'success', duration: 3000 })
+      toast({ title: '供应商已更新', variant: 'success', duration: 3000 })
     } else {
       await $fetch('/api/suppliers', { method: 'POST', body: payload })
-      toast({ title: '供应商新增成功', variant: 'success', duration: 3000 })
+      toast({ title: '供应商已创建', variant: 'success', duration: 3000 })
     }
 
     await refresh()
     sheetOpen.value = false
   } catch (err) {
-    formError.value = getApiErrorMessage(err, '操作失败，请稍后重试')
-    toast({ title: `操作失败：${formError.value}`, variant: 'error', duration: 3000 })
+    formError.value = getApiErrorMessage(err, '保存失败，请稍后重试')
+    toast({ title: formError.value, variant: 'error', duration: 3000 })
   } finally {
     submitting.value = false
   }
@@ -169,9 +158,9 @@ const toggleStatus = async (supplier: SupplierDto) => {
 const exportCsv = () => {
   if (!suppliers.value.length) return
   const header = '供应商名称,联系人,电话,邮箱,地址,状态,商品数,采购单数'
-  const rows = suppliers.value.map((s) => {
-    const status = s.status === 'ACTIVE' ? '合作中' : '已停用'
-    return `${s.name},${s.contactName || '-'},${s.phone || '-'},${s.email || '-'},${s.address || '-'},${status},${s._count?.products || 0},${s._count?.purchaseOrders || 0}`
+  const rows = suppliers.value.map((supplier) => {
+    const status = supplier.status === 'ACTIVE' ? '合作中' : '已停用'
+    return `${supplier.name},${supplier.contactName || '-'},${supplier.phone || '-'},${supplier.email || '-'},${supplier.address || '-'},${status},${supplier._count?.products || 0},${supplier._count?.purchaseOrders || 0}`
   })
   const csv = '\uFEFF' + [header, ...rows].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -297,16 +286,12 @@ const exportCsv = () => {
                 </span>
               </div>
               <div class="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                <span v-if="supplier.contactName" class="flex items-center gap-1">
-                  {{ supplier.contactName }}
-                </span>
+                <span v-if="supplier.contactName">{{ supplier.contactName }}</span>
                 <span v-if="supplier.phone" class="flex items-center gap-1">
                   <Phone class="h-3 w-3" />
                   {{ supplier.phone }}
                 </span>
-                <span v-if="supplier.email">
-                  {{ supplier.email }}
-                </span>
+                <span v-if="supplier.email">{{ supplier.email }}</span>
               </div>
               <div class="mt-3 flex items-center gap-3">
                 <span class="rounded-full bg-zinc-50 px-2.5 py-1 text-xs text-slate-500">
@@ -315,9 +300,7 @@ const exportCsv = () => {
                 <span class="rounded-full bg-zinc-50 px-2.5 py-1 text-xs text-slate-500">
                   采购单 {{ supplier._count?.purchaseOrders || 0 }}
                 </span>
-                <span class="text-xs text-slate-400">
-                  {{ formatDate(supplier.createdAt) }}
-                </span>
+                <span class="text-xs text-slate-400">{{ formatDate(supplier.createdAt) }}</span>
               </div>
             </div>
           </div>
@@ -361,67 +344,46 @@ const exportCsv = () => {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>{{ formTitle }}</SheetTitle>
-          <SheetDescription>
-            {{ isEditMode ? '修改供应商信息' : '添加新的供应商到系统' }}
-          </SheetDescription>
+          <SheetDescription>维护供应商联系人、联系方式、地址和备注信息。</SheetDescription>
         </SheetHeader>
 
-        <form class="mt-8 space-y-5" @submit.prevent="submitForm">
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-slate-700">供应商名称 *</label>
-            <input
-              v-model.trim="form.name"
-              type="text"
-              class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none"
-              required
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-slate-700">联系人</label>
-            <input
-              v-model.trim="form.contactName"
-              type="text"
-              class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-slate-700">电话</label>
-              <input
-                v-model.trim="form.phone"
-                type="text"
-                class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none"
-              />
-            </div>
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-slate-700">邮箱</label>
-              <input
-                v-model.trim="form.email"
-                type="email"
-                class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-slate-700">地址</label>
-            <input
-              v-model.trim="form.address"
-              type="text"
-              class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-slate-700">备注</label>
-            <textarea
-              v-model.trim="form.notes"
-              rows="3"
-              class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm focus:border-slate-300 focus:outline-none resize-none"
-            />
-          </div>
+        <form class="mt-8 space-y-4" @submit.prevent="submitForm">
+          <input
+            v-model="form.name"
+            type="text"
+            placeholder="供应商名称"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
+          <input
+            v-model="form.contactName"
+            type="text"
+            placeholder="联系人"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
+          <input
+            v-model="form.phone"
+            type="text"
+            placeholder="联系电话"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
+          <input
+            v-model="form.email"
+            type="text"
+            placeholder="邮箱"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
+          <input
+            v-model="form.address"
+            type="text"
+            placeholder="地址"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
+          <textarea
+            v-model="form.notes"
+            rows="4"
+            placeholder="备注"
+            class="w-full rounded-xl border border-slate-100 px-3 py-2.5 text-sm outline-none"
+          />
 
           <p
             v-if="formError"
@@ -433,18 +395,17 @@ const exportCsv = () => {
           <SheetFooter>
             <button
               type="button"
-              class="rounded-xl border border-slate-100 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-zinc-50"
+              class="rounded-xl border border-slate-100 px-4 py-2.5 text-sm text-slate-600"
               @click="sheetOpen = false"
             >
               取消
             </button>
             <button
               type="submit"
-              class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:bg-slate-300"
               :disabled="submitting"
             >
-              <LoaderCircle v-if="submitting" class="mx-auto h-4 w-4 animate-spin" />
-              <span v-else>保存</span>
+              {{ submitting ? '保存中...' : '保存供应商' }}
             </button>
           </SheetFooter>
         </form>

@@ -11,6 +11,7 @@ type UpdateProductBody = {
   image?: string | null
   category?: string
   price?: number
+  memberPrice?: number | null
   stock?: number
   minStock?: number
 }
@@ -76,6 +77,21 @@ export default defineEventHandler(async (event) => {
       }
       data.price = price
     }
+    if (body.memberPrice !== undefined) {
+      if (body.memberPrice === null || body.memberPrice === '') {
+        data.memberPrice = null
+      } else {
+        const memberPrice = Number(body.memberPrice)
+        if (Number.isNaN(memberPrice) || memberPrice < 0) {
+          throw createError({
+            statusCode: 400,
+            statusMessage: 'Bad Request',
+            message: '会员价格式错误'
+          })
+        }
+        data.memberPrice = memberPrice
+      }
+    }
     if (body.stock !== undefined) {
       const stock = Math.floor(Number(body.stock))
       if (Number.isNaN(stock) || stock < 0) {
@@ -114,7 +130,7 @@ export default defineEventHandler(async (event) => {
 
     await writeAuditLog(
       AUDIT_ACTIONS.PRODUCT_UPDATE,
-      `更新商品「${product.name}」(${product.sku})`,
+      `更新商品 ${product.name} (${product.sku})`,
       getClientIp(event)
     )
 

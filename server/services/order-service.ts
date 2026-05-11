@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import { ORDER_STATUS } from '~~/shared/constants/order'
 import { prisma } from '~~/server/lib/prisma'
+import { getEarnedPoints, getPointDiscountAmount } from '~~/server/services/customer-service'
 
 export type CreateOrderItemInput = {
   productId: string
@@ -10,6 +11,8 @@ export type CreateOrderItemInput = {
 export type CreateOrderInput = {
   items?: CreateOrderItemInput[]
   customerTail?: string
+  memberId?: string
+  pointsToUse?: number
 }
 
 export type CreatedOrderResult = {
@@ -19,6 +22,9 @@ export type CreatedOrderResult = {
   customerTail: string | null
   createdAt: Date
   totalAmount: number
+  pointsUsed: number
+  pointsEarned: number
+  discountAmount: number
   items: Array<{
     productId: string
     name: string
@@ -30,6 +36,7 @@ export type CreatedOrderResult = {
 }
 
 const MAX_ORDER_NO_RETRY = 3
+const CUSTOMER_TAIL_PATTERN = /^\d{4}$/
 
 const buildOrderNo = () => {
   const now = new Date()
@@ -41,7 +48,6 @@ const buildOrderNo = () => {
 }
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100
-const CUSTOMER_TAIL_PATTERN = /^\d{4}$/
 
 const normalizeCustomerTail = (value: string | undefined) => {
   const normalized = value?.trim() ?? ''
@@ -81,6 +87,7 @@ const normalizeItems = (inputItems: CreateOrderItemInput[]) => {
 export const createOrderAtomic = async (input: CreateOrderInput): Promise<CreatedOrderResult> => {
   const inputItems = input.items ?? []
   const customerTail = normalizeCustomerTail(input.customerTail)
+  const pointsToUse = Math.max(0, Math.floor(input.pointsToUse ?? 0))
 
   if (!inputItems.length) {
     throw createError({
@@ -103,7 +110,8 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
             name: true,
             sku: true,
             stock: true,
-            price: true
+            price: true,
+            memberPrice: true
           }
         })
 
@@ -116,7 +124,8 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
         }
 
         const productMap = new Map(products.map((product) => [product.id, product]))
-        let totalAmount = 0
+        let subtotal = 0
+        let memberPoints = 0
 
         for (const item of mergedItems) {
           const product = productMap.get(item.productId)
@@ -127,15 +136,47 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
               message: '存在无效商品，无法创建订单'
             })
           }
+
           if (product.stock < item.quantity) {
             throw createError({
               statusCode: 400,
               statusMessage: 'Bad Request',
-              message: `“${product.name}” 库存不足（当前 ${product.stock}）`
+              message: `商品 ${product.name} 库存不足，当前库存 ${product.stock}`
             })
           }
-          totalAmount += Number(product.price) * item.quantity
+
+          const unitPrice =
+            input.memberId && product.memberPrice != null
+              ? Number(product.memberPrice)
+              : Number(product.price)
+          subtotal += unitPrice * item.quantity
         }
+
+        if (input.memberId) {
+          const member = await tx.customer.findUnique({
+            where: { id: input.memberId },
+            select: { id: true, points: true }
+          })
+
+          if (!member) {
+            throw createError({
+              statusCode: 400,
+              statusMessage: 'Bad Request',
+              message: '会员不存在'
+            })
+          }
+
+          memberPoints = member.points
+        }
+
+        const maxDiscountByPoints = getPointDiscountAmount(memberPoints)
+        const requestedDiscount = getPointDiscountAmount(pointsToUse)
+        const rawDiscount = Math.min(maxDiscountByPoints, requestedDiscount)
+        const maxDiscountByAmount = Math.floor(subtotal * 0.5)
+        const discountAmount = Math.min(rawDiscount, maxDiscountByAmount)
+        const finalPointsUsed = discountAmount * 100
+        const totalAmount = Math.max(0, roundMoney(subtotal - discountAmount))
+        const pointsEarned = input.memberId ? getEarnedPoints(totalAmount) : 0
 
         for (const item of mergedItems) {
           const updated = await tx.product.updateMany({
@@ -162,31 +203,77 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
             orderNo: buildOrderNo(),
             totalAmount: roundMoney(totalAmount),
             status: ORDER_STATUS.COMPLETED,
-            customerTail
+            customerTail,
+            memberId: input.memberId ?? null,
+            pointsUsed: finalPointsUsed,
+            pointsEarned,
+            discountAmount
           }
         })
+
+        if (input.memberId && finalPointsUsed > 0) {
+          await tx.customer.update({
+            where: { id: input.memberId },
+            data: {
+              points: { decrement: finalPointsUsed }
+            }
+          })
+
+          await tx.pointLog.create({
+            data: {
+              customerId: input.memberId,
+              orderId: order.id,
+              change: -finalPointsUsed,
+              reason: '积分抵扣'
+            }
+          })
+        }
+
+        if (input.memberId && pointsEarned > 0) {
+          await tx.customer.update({
+            where: { id: input.memberId },
+            data: {
+              points: { increment: pointsEarned }
+            }
+          })
+
+          await tx.pointLog.create({
+            data: {
+              customerId: input.memberId,
+              orderId: order.id,
+              change: pointsEarned,
+              reason: '消费积分'
+            }
+          })
+        }
 
         await tx.orderItem.createMany({
           data: mergedItems.map((item) => {
             const product = productMap.get(item.productId)!
+            const unitPrice =
+              input.memberId && product.memberPrice != null ? product.memberPrice : product.price
             return {
               orderId: order.id,
               productId: item.productId,
               quantity: item.quantity,
-              unitPrice: product.price
+              unitPrice
             }
           })
         })
 
         const orderItems = mergedItems.map((item) => {
           const product = productMap.get(item.productId)!
+          const unitPrice =
+            input.memberId && product.memberPrice != null
+              ? Number(product.memberPrice)
+              : Number(product.price)
           return {
             productId: item.productId,
             name: product.name,
             sku: product.sku,
             quantity: item.quantity,
-            unitPrice: Number(product.price),
-            lineAmount: roundMoney(Number(product.price) * item.quantity)
+            unitPrice,
+            lineAmount: roundMoney(unitPrice * item.quantity)
           }
         })
 
@@ -197,6 +284,9 @@ export const createOrderAtomic = async (input: CreateOrderInput): Promise<Create
           customerTail: order.customerTail,
           createdAt: order.createdAt,
           totalAmount: Number(order.totalAmount),
+          pointsUsed: finalPointsUsed,
+          pointsEarned,
+          discountAmount,
           items: orderItems
         }
       })

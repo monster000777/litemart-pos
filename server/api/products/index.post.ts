@@ -11,6 +11,7 @@ type CreateProductBody = {
   image?: string | null
   category?: string
   price?: number
+  memberPrice?: number | null
   stock?: number
   minStock?: number
 }
@@ -23,6 +24,10 @@ export default defineEventHandler(async (event) => {
     const image = parseProductImage(body.image)
     const category = body.category?.trim()
     const price = Number(body.price)
+    const memberPrice =
+      body.memberPrice === null || body.memberPrice === undefined || body.memberPrice === ''
+        ? null
+        : Number(body.memberPrice)
     const stock = Math.floor(Number(body.stock))
     const minStock = Math.floor(Number(body.minStock))
 
@@ -31,6 +36,7 @@ export default defineEventHandler(async (event) => {
       !sku ||
       !category ||
       Number.isNaN(price) ||
+      Number.isNaN(memberPrice ?? 0) ||
       Number.isNaN(stock) ||
       Number.isNaN(minStock)
     ) {
@@ -41,7 +47,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (price < 0 || stock < 0 || minStock < 0) {
+    if (price < 0 || (memberPrice != null && memberPrice < 0) || stock < 0 || minStock < 0) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
@@ -56,6 +62,7 @@ export default defineEventHandler(async (event) => {
         image,
         category,
         price,
+        memberPrice,
         stock,
         minStock
       }
@@ -63,7 +70,7 @@ export default defineEventHandler(async (event) => {
 
     await writeAuditLog(
       AUDIT_ACTIONS.PRODUCT_CREATE,
-      `新增商品「${name}」(${sku})`,
+      `新增商品 ${name} (${sku})`,
       getClientIp(event)
     )
 
