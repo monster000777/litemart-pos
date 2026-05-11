@@ -129,6 +129,25 @@ export const updateAuthUserPin = async (userId: string, hashedPin: string) => {
   `
 }
 
+export const deleteAuthUserSafely = async (userId: string, currentUserId: string) => {
+  const deleted = await prisma.$executeRaw`
+    DELETE FROM "AuthUser"
+    WHERE "id" = ${userId}
+      AND "id" <> ${currentUserId}
+      AND NOT (
+        "role" = ${USER_ROLES.ADMIN}
+        AND "status" = ${AUTH_USER_STATUS.ACTIVE}
+        AND (
+          SELECT COUNT(*)
+          FROM "AuthUser"
+          WHERE "role" = ${USER_ROLES.ADMIN} AND "status" = ${AUTH_USER_STATUS.ACTIVE}
+        ) <= 1
+      )
+  `
+
+  return Number(deleted) > 0
+}
+
 export const ensureLegacyAdminUserMigrated = async () => {
   const userCount = await countAuthUsers()
   if (userCount > 0) {

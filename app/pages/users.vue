@@ -7,7 +7,8 @@ import {
   ShieldCheck,
   UserCog,
   UserRound,
-  Pencil
+  Pencil,
+  Trash2
 } from 'lucide-vue-next'
 import Sheet from '~/components/ui/sheet/Sheet.vue'
 import SheetContent from '~/components/ui/sheet/SheetContent.vue'
@@ -60,6 +61,8 @@ const canDemoteOrDisable = (user: AuthUserDto) => {
   }
   return true
 }
+
+const canDelete = (user: AuthUserDto) => canDemoteOrDisable(user)
 
 const createSheetOpen = ref(false)
 const resetSheetOpen = ref(false)
@@ -251,6 +254,34 @@ const toggleStatus = async (user: AuthUserDto) => {
     await refresh()
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '状态更新失败'), variant: 'error', duration: 3000 })
+  } finally {
+    mutatingId.value = ''
+  }
+}
+
+const deleteUser = async (user: AuthUserDto) => {
+  if (mutatingId.value || !canDelete(user)) {
+    return
+  }
+
+  const confirmed = window.confirm(`确认删除账号「${user.name}」？此操作不可恢复。`)
+  if (!confirmed) {
+    return
+  }
+
+  mutatingId.value = user.id
+  try {
+    await $fetch(`/api/auth/users/${user.id}`, {
+      method: 'DELETE'
+    })
+    toast({
+      title: `${user.name} 已删除`,
+      variant: 'success',
+      duration: 3000
+    })
+    await refresh()
+  } catch (err) {
+    toast({ title: getApiErrorMessage(err, '删除账号失败'), variant: 'error', duration: 3000 })
   } finally {
     mutatingId.value = ''
   }
@@ -454,6 +485,16 @@ const submitResetPin = async () => {
                   >
                     <KeyRound class="h-3.5 w-3.5" />
                     重置 PIN
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs text-rose-600 transition hover:border-rose-300 hover:text-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    :disabled="mutatingId === user.id || !canDelete(user)"
+                    :title="!canDelete(user) ? '无法删除当前账号或最后一个启用的管理员' : ''"
+                    @click="deleteUser(user)"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                    删除
                   </button>
                 </div>
               </TableCell>
