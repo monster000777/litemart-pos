@@ -1,10 +1,10 @@
 import { H3Error } from 'h3'
-import { findAuthUserByName, updateAuthUser } from '~~/server/services/auth-user-service'
+import { findAuthUserByPhone, updateAuthUser } from '~~/server/services/auth-user-service'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
 
 type UpdateProfileBody = {
-  name?: string
+  phone?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -19,45 +19,45 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<UpdateProfileBody>(event)
-    const name = body.name?.trim()
+    const phone = body.phone?.trim()
 
-    if (!name) {
+    if (!phone) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '账号名称不能为空'
+        message: '手机号不能为空'
       })
     }
 
-    if (name.length < 2 || name.length > 20) {
+    if (!/^1\d{10}$/.test(phone)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '账号名称长度须在 2~20 个字符之间'
+        message: '手机号格式错误'
       })
     }
 
-    if (name !== authUser.name) {
-      const existing = await findAuthUserByName(name)
+    if (phone !== authUser.phone) {
+      const existing = await findAuthUserByPhone(phone)
       if (existing) {
         throw createError({
           statusCode: 409,
           statusMessage: 'Conflict',
-          message: '该账号名已被使用'
+          message: '该手机号已被注册'
         })
       }
 
-      await updateAuthUser(authUser.id, { name })
+      await updateAuthUser(authUser.id, { phone })
       await writeAuditLog(
         AUDIT_ACTIONS.AUTH_USER_UPDATE,
-        `更新个人资料: 账号名改为 ${name}`,
+        `更新个人资料: 手机号改为 ${phone}`,
         getClientIp(event)
       )
     }
 
     return {
       success: true,
-      name
+      phone
     }
   } catch (error) {
     if (error instanceof H3Error) {

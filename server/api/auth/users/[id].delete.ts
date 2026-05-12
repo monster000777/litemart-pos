@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
 
     await writeAuditLog(
       AUDIT_ACTIONS.AUTH_USER_DELETE,
-      `删除账号：${targetUser.name}（${targetUser.role}）`,
+      `删除账号：${targetUser.uid}（${targetUser.role}）`,
       getClientIp(event)
     )
 

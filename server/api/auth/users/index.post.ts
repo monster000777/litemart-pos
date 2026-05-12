@@ -6,7 +6,7 @@ import { getClientIp } from '~~/server/utils/request'
 import { isUserRole, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 type CreateAuthUserBody = {
-  name?: string
+  phone?: string
   pin?: string
   confirmPin?: string
   role?: UserRole
@@ -29,16 +29,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<CreateAuthUserBody>(event)
-    const name = body.name?.trim() ?? ''
+    const phone = body.phone?.trim() ?? ''
     const pin = body.pin?.trim() ?? ''
     const confirmPin = body.confirmPin?.trim() ?? ''
     const role = body.role
 
-    if (!name) {
+    if (!phone || !/^1\d{10}$/.test(phone)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '账号名称不能为空'
+        message: '手机号格式错误'
       })
     }
 
@@ -75,10 +75,11 @@ export default defineEventHandler(async (event) => {
     }
 
     const pinHash = await hashPin(pin)
-    await createAuthUser({ name, pinHash, role })
+    const uid = Math.floor(10000000 + Math.random() * 90000000).toString()
+    await createAuthUser({ uid, phone, pinHash, role })
     await writeAuditLog(
       AUDIT_ACTIONS.AUTH_USER_CREATE,
-      `新增账号：${name}（${role}）`,
+      `新增账号：${uid}（${role}，手机号：${phone}）`,
       getClientIp(event)
     )
 

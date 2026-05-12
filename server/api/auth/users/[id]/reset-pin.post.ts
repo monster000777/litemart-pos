@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
     await updateAuthUserPin(targetUser.id, pinHash)
     await writeAuditLog(
       AUDIT_ACTIONS.AUTH_USER_RESET_PIN,
-      `重置账号 PIN：${targetUser.name}`,
+      `重置账号 PIN：${targetUser.uid}`,
       getClientIp(event)
     )
 

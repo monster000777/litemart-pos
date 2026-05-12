@@ -67,7 +67,8 @@ model Config {
 
 model AuthUser {
   id        String   @id @default(cuid())
-  name      String
+  uid       String   @unique
+  phone     String   @unique
   pinHash   String
   role      String   @default("CASHIER")
   status    String   @default("ACTIVE")

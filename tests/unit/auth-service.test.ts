@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 
-const isValidPinFormat = (pin: string) => /^\d{6}$/.test(pin)
+import {
+  hashPin,
+  verifyPin,
+  createSessionToken,
+  verifySessionToken,
+  isValidPinFormat
+} from '../../server/services/auth-service'
 
 const encode = (value: string) => Buffer.from(value, 'utf8').toString('base64url')
 const decode = (value: string) => Buffer.from(value, 'base64url').toString('utf8')
@@ -70,6 +76,72 @@ describe('auth-service', () => {
       const payload = createSessionPayload('user-123')
       const now = Math.floor(Date.now() / 1000)
       expect(payload.exp).toBeGreaterThan(now)
+    })
+  })
+
+  describe('PIN Hashing (hashPin & verifyPin)', () => {
+    it('should hash PIN correctly', async () => {
+      const pin = '123456'
+      const hash = await hashPin(pin)
+      expect(hash).toContain('scrypt$')
+    })
+
+    it('should verify correct PIN', async () => {
+      const pin = '123456'
+      const hash = await hashPin(pin)
+      const isValid = await verifyPin(pin, hash)
+      expect(isValid).toBe(true)
+    })
+
+    it('should reject incorrect PIN', async () => {
+      const pin = '123456'
+      const hash = await hashPin(pin)
+      const isValid = await verifyPin('654321', hash)
+      expect(isValid).toBe(false)
+    })
+
+    it('should reject invalid hash formats', async () => {
+      const isValid = await verifyPin('123456', 'invalid-hash-string')
+      expect(isValid).toBe(false)
+    })
+  })
+
+  describe('Session Tokens (create & verify)', () => {
+    const testSecret = 'super-secret-test-key'
+
+    it('should create a valid session token', () => {
+      const token = createSessionToken(testSecret, 'user-999')
+      expect(token).toContain('.')
+    })
+
+    it('should verify a valid session token', () => {
+      const token = createSessionToken(testSecret, 'user-999')
+      const decodedPayload = verifySessionToken(token, testSecret)
+      expect(decodedPayload).not.toBeNull()
+      expect(decodedPayload?.uid).toBe('user-999')
+    })
+
+    it('should reject missing tokens', () => {
+      expect(verifySessionToken(undefined, testSecret)).toBeNull()
+      expect(verifySessionToken('', testSecret)).toBeNull()
+    })
+
+    it('should reject tokens customized with wrong secret', () => {
+      const token = createSessionToken(testSecret, 'user-999')
+      const result = verifySessionToken(token, 'wrong-secret')
+      expect(result).toBeNull()
+    })
+
+    it('should reject tampered tokens', () => {
+      const token = createSessionToken(testSecret, 'user-999')
+      const [payload, sig] = token.split('.')
+
+      // Tamper with payload
+      const fakePayloadPayload = { ...JSON.parse(decode(payload)), uid: 'user-000' }
+      const fakeToken = `${encode(JSON.stringify(fakePayloadPayload))}.${sig}`
+
+      const result = verifySessionToken(fakeToken, testSecret)
+      expect(result).toBeNull()
     })
   })
 })

@@ -6,21 +6,22 @@ const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const authRole = useState<UserRole | null>('auth:role')
 
-const submittingName = ref(false)
+const submittingProfile = ref(false)
 const submittingPin = ref(false)
 const refreshingCode = ref(false)
 
-const profileForm = reactive({ name: '' })
+const profileForm = reactive({ uid: '', phone: '' })
 const pinForm = reactive({ oldPin: '', newPin: '', confirmPin: '' })
 
 const inviteCode = ref<string | null>(null)
-const initialName = ref('')
+const initialUid = ref('')
 
 onMounted(async () => {
   try {
     const session = await $fetch('/api/auth/session')
-    profileForm.name = session.user?.name || ''
-    initialName.value = profileForm.name
+    profileForm.uid = session.user?.uid || ''
+    profileForm.phone = session.user?.phone || ''
+    initialUid.value = profileForm.uid
 
     if (roleHasAtLeast(authRole.value, USER_ROLES.MANAGER)) {
       const res = await $fetch('/api/auth/invite-code')
@@ -32,19 +33,18 @@ onMounted(async () => {
 })
 
 const submitProfile = async () => {
-  if (submittingName.value || !profileForm.name.trim()) return
-  submittingName.value = true
+  if (submittingProfile.value || !profileForm.phone.trim()) return
+  submittingProfile.value = true
   try {
     await $fetch('/api/auth/profile', {
       method: 'PUT',
-      body: { name: profileForm.name.trim() }
+      body: { phone: profileForm.phone.trim() }
     })
-    initialName.value = profileForm.name.trim()
     toast({ title: '个人资料已更新', variant: 'success', duration: 3000 })
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '资料更新失败'), variant: 'error', duration: 3000 })
   } finally {
-    submittingName.value = false
+    submittingProfile.value = false
   }
 }
 
@@ -55,7 +55,7 @@ const submitPin = async () => {
     await $fetch('/api/auth/reset-pin', {
       method: 'POST',
       body: {
-        uid: initialName.value,
+        uid: initialUid.value,
         oldPin: pinForm.oldPin,
         newPin: pinForm.newPin,
         confirmPin: pinForm.confirmPin
@@ -114,11 +114,20 @@ const refreshInviteCode = async () => {
 
         <form class="flex flex-1 flex-col space-y-4" @submit.prevent="submitProfile">
           <label class="block space-y-2">
-            <span class="text-sm font-medium text-slate-700">账号名称 (UID)</span>
+            <span class="text-sm font-medium text-slate-700">账号 UID</span>
             <input
-              v-model="profileForm.name"
+              v-model="profileForm.uid"
               type="text"
-              maxlength="20"
+              readonly
+              class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 outline-none cursor-not-allowed"
+            />
+          </label>
+          <label class="block space-y-2">
+            <span class="text-sm font-medium text-slate-700">绑定手机号</span>
+            <input
+              v-model="profileForm.phone"
+              type="text"
+              maxlength="11"
               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </label>
@@ -126,9 +135,9 @@ const refreshInviteCode = async () => {
             <button
               type="submit"
               class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-              :disabled="submittingName || !profileForm.name.trim()"
+              :disabled="submittingProfile || !profileForm.phone.trim()"
             >
-              <LoaderCircle v-if="submittingName" class="h-4 w-4 animate-spin" />
+              <LoaderCircle v-if="submittingProfile" class="h-4 w-4 animate-spin" />
               <span>保存资料</span>
             </button>
           </div>

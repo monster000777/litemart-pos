@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
+import { ArrowLeft, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
 import type { UserRole } from '~~/shared/constants/rbac'
 
 definePageMeta({ layout: false })
@@ -25,14 +25,17 @@ const helperMessage = ref('')
 
 const loginUid = ref('')
 const loginPin = ref('')
-const regUid = ref('')
+const regPhone = ref('')
 const regPin = ref('')
 const regConfirmPin = ref('')
 const regInviteCode = ref('')
-const resetUid = ref('')
-const resetOldPin = ref('')
+const resetPhone = ref('')
+const resetOtpCode = ref('')
 const resetNewPin = ref('')
 const resetConfirmPin = ref('')
+
+const otpCountdown = ref(0)
+let otpTimer: ReturnType<typeof setInterval> | null = null
 
 const { getApiErrorMessage } = useApiError()
 const route = useRoute()
@@ -70,7 +73,7 @@ const completeAuthFlow = async () => {
 const login = async () => {
   errorMessage.value = ''
   if (!loginUid.value.trim()) {
-    errorMessage.value = '请输入账号'
+    errorMessage.value = '请输入员工 UID'
     return
   }
   if (loginPin.value.length !== 6) {
@@ -98,8 +101,8 @@ const login = async () => {
 
 const register = async () => {
   errorMessage.value = ''
-  if (!regUid.value.trim() || regUid.value.trim().length < 2) {
-    errorMessage.value = '账号至少 2 个字符'
+  if (!regPhone.value.trim() || regPhone.value.trim().length !== 11) {
+    errorMessage.value = '请输入 11 位手机号'
     return
   }
   if (regPin.value.length !== 6) {
@@ -113,15 +116,16 @@ const register = async () => {
   if (submitting.value) return
   submitting.value = true
   try {
-    const result = await $fetch<AuthMutationResponse>('/api/auth/register', {
+    const result = await $fetch<AuthMutationResponse & { uid: string }>('/api/auth/register', {
       method: 'POST',
       body: {
-        uid: regUid.value.trim(),
+        phone: regPhone.value.trim(),
         pin: regPin.value,
         confirmPin: regConfirmPin.value,
         inviteCode: regInviteCode.value.trim()
       }
     })
+    window.alert(`注册成功！您的员工 UID 为：${result.uid}\n请妥善保管此 UID，您将使用它进行登录。`)
     authRole.value = result.role
     await completeAuthFlow()
   } catch (error) {
@@ -136,8 +140,8 @@ const register = async () => {
 const resetPin = async () => {
   errorMessage.value = ''
   if (
-    !resetUid.value.trim() ||
-    resetOldPin.value.length !== 6 ||
+    !resetPhone.value.trim() ||
+    !resetOtpCode.value.trim() ||
     resetNewPin.value.length !== 6 ||
     resetConfirmPin.value.length !== 6
   ) {
@@ -154,15 +158,15 @@ const resetPin = async () => {
     await $fetch('/api/auth/reset-pin', {
       method: 'POST',
       body: {
-        uid: resetUid.value.trim(),
-        oldPin: resetOldPin.value,
+        phone: resetPhone.value.trim(),
+        otpCode: resetOtpCode.value.trim(),
         newPin: resetNewPin.value,
         confirmPin: resetConfirmPin.value
       }
     })
     mode.value = MODE_LOGIN
-    resetUid.value = ''
-    resetOldPin.value = ''
+    resetPhone.value = ''
+    resetOtpCode.value = ''
     resetNewPin.value = ''
     resetConfirmPin.value = ''
     helperMessage.value = 'PIN 重置成功，请重新登录'
@@ -190,11 +194,54 @@ const switchMode = (m: typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RE
   mode.value = m
   errorMessage.value = ''
   helperMessage.value = ''
+  if (m !== MODE_RESET && otpTimer) {
+    clearInterval(otpTimer)
+    otpCountdown.value = 0
+  }
+}
+
+const sendOtp = async () => {
+  errorMessage.value = ''
+  helperMessage.value = ''
+  if (!resetPhone.value.trim() || resetPhone.value.trim().length !== 11) {
+    errorMessage.value = '请输入 11 位手机号'
+    return
+  }
+  if (otpCountdown.value > 0) return
+
+  try {
+    const res = await $fetch<{ success: boolean; message: string; mockCode?: string }>(
+      '/api/auth/send-otp',
+      {
+        method: 'POST',
+        body: { phone: resetPhone.value.trim() }
+      }
+    )
+
+    // Start countdown
+    otpCountdown.value = 60
+    otpTimer = setInterval(() => {
+      otpCountdown.value--
+      if (otpCountdown.value <= 0 && otpTimer) {
+        clearInterval(otpTimer)
+        otpTimer = null
+      }
+    }, 1000)
+
+    if (res.mockCode) {
+      helperMessage.value = `验证码已发送。为了方便测试，验证码是: ${res.mockCode}`
+    } else {
+      helperMessage.value = '验证码已发送，请查收'
+    }
+  } catch (error) {
+    handleApiError(error, '发送验证码失败')
+  }
 }
 
 onMounted(resolveMode)
 onUnmounted(() => {
   if (lockTimer.value) clearInterval(lockTimer.value)
+  if (otpTimer) clearInterval(otpTimer)
 })
 </script>
 
@@ -266,7 +313,7 @@ onUnmounted(() => {
               <input
                 v-model="loginUid"
                 type="text"
-                placeholder="账号"
+                placeholder="员工 UID"
                 maxlength="20"
                 autocomplete="username"
                 class="field-input"
@@ -331,10 +378,10 @@ onUnmounted(() => {
             </div>
             <div class="field">
               <input
-                v-model="regUid"
+                v-model="regPhone"
                 type="text"
-                :placeholder="isInitialized ? '账号名' : '管理员账号'"
-                maxlength="20"
+                placeholder="手机号 (用于找回 PIN)"
+                maxlength="11"
                 class="field-input"
                 :disabled="isDisabled"
               />
@@ -401,47 +448,78 @@ onUnmounted(() => {
           <div class="fields">
             <div class="field">
               <input
-                v-model="resetUid"
+                v-model="resetPhone"
                 type="text"
-                placeholder="账号"
-                maxlength="20"
+                placeholder="注册手机号"
+                maxlength="11"
                 class="field-input"
                 :disabled="isDisabled"
               />
             </div>
-            <div class="field">
+            <div class="field flex gap-2">
               <input
-                v-model="resetOldPin"
-                type="password"
-                placeholder="当前 PIN"
+                v-model="resetOtpCode"
+                type="text"
+                placeholder="短信验证码"
                 maxlength="6"
-                inputmode="numeric"
-                class="field-input"
+                class="field-input flex-1"
                 :disabled="isDisabled"
               />
+              <button
+                type="button"
+                class="rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                :disabled="
+                  isDisabled || otpCountdown > 0 || !resetPhone || resetPhone.length !== 11
+                "
+                @click="sendOtp"
+              >
+                {{ otpCountdown > 0 ? `${otpCountdown}s 后重发` : '获取验证码' }}
+              </button>
             </div>
             <div class="field">
-              <input
-                v-model="resetNewPin"
-                type="password"
-                placeholder="新 PIN"
-                maxlength="6"
-                inputmode="numeric"
-                class="field-input"
-                :disabled="isDisabled"
-              />
+              <div class="pin-wrap">
+                <input
+                  v-model="resetNewPin"
+                  :type="showPin ? 'text' : 'password'"
+                  placeholder="新 PIN"
+                  maxlength="6"
+                  inputmode="numeric"
+                  class="field-input pin-input"
+                  :disabled="isDisabled"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :disabled="isDisabled"
+                  @click="showPin = !showPin"
+                >
+                  <EyeOff v-if="showPin" class="icon" />
+                  <Eye v-else class="icon" />
+                </button>
+              </div>
             </div>
             <div class="field">
-              <input
-                v-model="resetConfirmPin"
-                type="password"
-                placeholder="确认新 PIN"
-                maxlength="6"
-                inputmode="numeric"
-                class="field-input"
-                :disabled="isDisabled"
-                @keydown.enter="resetPin"
-              />
+              <div class="pin-wrap">
+                <input
+                  v-model="resetConfirmPin"
+                  :type="showConfirmPin ? 'text' : 'password'"
+                  placeholder="确认新 PIN"
+                  maxlength="6"
+                  inputmode="numeric"
+                  class="field-input pin-input"
+                  :disabled="isDisabled"
+                  @keydown.enter="resetPin"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :disabled="isDisabled"
+                  @click="showConfirmPin = !showConfirmPin"
+                >
+                  <EyeOff v-if="showConfirmPin" class="icon" />
+                  <Eye v-else class="icon" />
+                </button>
+              </div>
             </div>
           </div>
           <button class="btn-primary" :disabled="isDisabled" @click="resetPin">

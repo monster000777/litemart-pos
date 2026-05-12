@@ -8,7 +8,8 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/api/auth/register',
   '/api/auth/status',
   '/api/auth/logout',
-  '/api/auth/reset-pin'
+  '/api/auth/reset-pin',
+  '/api/auth/send-otp'
 ])
 
 export default defineEventHandler(async (event) => {

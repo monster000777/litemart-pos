@@ -4,7 +4,7 @@ import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/aut
 import {
   countAuthUsers,
   createAuthUser,
-  findAuthUserByName
+  findAuthUserByPhone
 } from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
@@ -12,7 +12,7 @@ import { getClientIp } from '~~/server/utils/request'
 import { USER_ROLES } from '~~/shared/constants/rbac'
 
 type RegisterBody = {
-  uid?: string
+  phone?: string
   pin?: string
   confirmPin?: string
   inviteCode?: string
@@ -21,16 +21,16 @@ type RegisterBody = {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<RegisterBody>(event)
-    const uid = body.uid?.trim() ?? ''
+    const phone = body.phone?.trim() ?? ''
     const pin = body.pin?.trim() ?? ''
     const confirmPin = body.confirmPin?.trim() ?? ''
     const inviteCode = body.inviteCode?.trim() ?? ''
 
-    if (!uid || uid.length < 2 || uid.length > 20) {
+    if (!phone || !/^1\d{10}$/.test(phone)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '账号名称长度须在 2~20 个字符之间'
+        message: '手机号格式错误（需为 11 位数字）'
       })
     }
 
@@ -97,12 +97,12 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const existingUser = await findAuthUserByName(uid)
+    const existingUser = await findAuthUserByPhone(phone)
     if (existingUser) {
       throw createError({
         statusCode: 409,
         statusMessage: 'Conflict',
-        message: '该账号名已被使用，请换一个'
+        message: '该手机号已被注册'
       })
     }
 
@@ -114,8 +114,11 @@ export default defineEventHandler(async (event) => {
       await createAuthConfigIfMissing(hashedPin, USER_ROLES.ADMIN, newInviteCode)
     }
 
+    const uid = Math.floor(10000000 + Math.random() * 90000000).toString()
+
     const userId = await createAuthUser({
-      name: uid,
+      uid,
+      phone,
       pinHash: hashedPin,
       role: finalRole
     })
@@ -129,11 +132,16 @@ export default defineEventHandler(async (event) => {
       maxAge: AUTH_MAX_AGE_SECONDS
     })
 
-    await writeAuditLog(AUDIT_ACTIONS.REGISTER, `初始化首个管理员账号：${uid}`, getClientIp(event))
+    await writeAuditLog(
+      AUDIT_ACTIONS.REGISTER,
+      `注册新用户：${uid} (手机号: ${phone})`,
+      getClientIp(event)
+    )
 
     return {
       success: true,
-      role: USER_ROLES.ADMIN
+      role: finalRole,
+      uid
     }
   } catch (error) {
     if (error instanceof H3Error) {

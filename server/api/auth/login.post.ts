@@ -9,7 +9,7 @@ import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/aut
 import {
   createAuthUser,
   ensureLegacyAdminUserMigrated,
-  findAuthUserByName
+  findAuthUserByUid
 } from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '请输入账号名称'
+        message: '请输入员工 UID'
       })
     }
 
@@ -81,7 +81,12 @@ export default defineEventHandler(async (event) => {
 
       const hashedPin = await hashPin(bootstrapPin)
       await createAuthConfigIfMissing(hashedPin)
-      await createAuthUser({ name: '管理员', pinHash: hashedPin, role: USER_ROLES.ADMIN })
+      await createAuthUser({
+        uid: 'ADMIN0001',
+        phone: '00000000000',
+        pinHash: hashedPin,
+        role: USER_ROLES.ADMIN
+      })
       authConfig = await getAuthConfig()
       if (!authConfig) {
         throw createError({
@@ -94,7 +99,7 @@ export default defineEventHandler(async (event) => {
 
     await ensureLegacyAdminUserMigrated()
 
-    const user = await findAuthUserByName(uid)
+    const user = await findAuthUserByUid(uid)
     if (!user || user.status !== 'ACTIVE') {
       await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `账号不存在或已停用：${uid}`, clientIp)
       const newLockSeconds = limiter.recordFailure(clientIp)
@@ -133,7 +138,7 @@ export default defineEventHandler(async (event) => {
     }
 
     limiter.reset(clientIp)
-    await writeAuditLog(AUDIT_ACTIONS.LOGIN, `登录成功：${user.name}`, clientIp)
+    await writeAuditLog(AUDIT_ACTIONS.LOGIN, `登录成功：${user.uid}`, clientIp)
 
     const token = createSessionToken(authSecret, user.id)
     setCookie(event, AUTH_COOKIE_NAME, token, {

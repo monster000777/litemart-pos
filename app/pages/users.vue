@@ -77,7 +77,7 @@ const resetTarget = ref<AuthUserDto | null>(null)
 const editTarget = ref<AuthUserDto | null>(null)
 
 const createForm = reactive({
-  name: '',
+  phone: '',
   role: USER_ROLES.CASHIER as UserRole,
   pin: '',
   confirmPin: ''
@@ -89,7 +89,7 @@ const resetForm = reactive({
 })
 
 const editForm = reactive({
-  name: '',
+  phone: '',
   role: USER_ROLES.CASHIER as UserRole
 })
 
@@ -121,7 +121,7 @@ const stats = computed(() => [
 ])
 
 const resetCreateForm = () => {
-  createForm.name = ''
+  createForm.phone = ''
   createForm.role = USER_ROLES.CASHIER
   createForm.pin = ''
   createForm.confirmPin = ''
@@ -143,7 +143,7 @@ const openResetSheet = (user: AuthUserDto) => {
 
 const openEditSheet = (user: AuthUserDto) => {
   editTarget.value = user
-  editForm.name = user.name
+  editForm.phone = user.phone
   editForm.role = user.role
   editError.value = ''
   editSheetOpen.value = true
@@ -158,7 +158,7 @@ const submitCreate = async () => {
     await $fetch('/api/auth/users', {
       method: 'POST',
       body: {
-        name: createForm.name,
+        phone: createForm.phone,
         role: createForm.role,
         pin: createForm.pin,
         confirmPin: createForm.confirmPin
@@ -184,7 +184,7 @@ const submitEdit = async () => {
     await $fetch(`/api/auth/users/${editTarget.value.id}`, {
       method: 'PATCH',
       body: {
-        name: editForm.name,
+        phone: editForm.phone,
         role: editForm.role !== editTarget.value.role ? editForm.role : undefined
       }
     })
@@ -216,7 +216,7 @@ const toggleRole = async (user: AuthUserDto) => {
       body: { role: nextRole }
     })
     toast({
-      title: `${user.name} 已切换为 ${ROLE_LABELS[nextRole]}`,
+      title: `${user.uid} 已切换为 ${ROLE_LABELS[nextRole]}`,
       variant: 'success',
       duration: 3000
     })
@@ -239,7 +239,7 @@ const toggleStatus = async (user: AuthUserDto) => {
       body: { status: nextStatus }
     })
     toast({
-      title: `${user.name} 已${nextStatus === 'ACTIVE' ? '启用' : '停用'}`,
+      title: `${user.uid} 已${nextStatus === 'ACTIVE' ? '启用' : '停用'}`,
       variant: 'success',
       duration: 3000
     })
@@ -254,7 +254,7 @@ const toggleStatus = async (user: AuthUserDto) => {
 const deleteUser = async (user: AuthUserDto) => {
   if (mutatingId.value || !canDelete(user)) return
 
-  const confirmed = window.confirm(`确认删除账号「${user.name}」？此操作不可恢复。`)
+  const confirmed = window.confirm(`确认删除账号「${user.uid}」？此操作不可恢复。`)
   if (!confirmed) return
 
   mutatingId.value = user.id
@@ -263,7 +263,7 @@ const deleteUser = async (user: AuthUserDto) => {
       method: 'DELETE'
     })
     toast({
-      title: `${user.name} 已删除`,
+      title: `${user.uid} 已删除`,
       variant: 'success',
       duration: 3000
     })
@@ -289,7 +289,7 @@ const submitResetPin = async () => {
       }
     })
     toast({
-      title: `${resetTarget.value.name} 的 PIN 已重置`,
+      title: `${resetTarget.value.uid} 的 PIN 已重置`,
       variant: 'success',
       duration: 3000
     })
@@ -361,7 +361,7 @@ const submitResetPin = async () => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>账号</TableHead>
+            <TableHead>UID & 手机号</TableHead>
             <TableHead>角色</TableHead>
             <TableHead>状态</TableHead>
             <TableHead>说明</TableHead>
@@ -393,8 +393,9 @@ const submitResetPin = async () => {
                     <UserRound class="h-4 w-4" />
                   </div>
                   <div>
-                    <p>{{ user.name }}</p>
+                    <p>{{ user.uid }}</p>
                     <p class="text-xs text-slate-400">
+                      {{ user.phone }} &bull;
                       {{ user.id === currentUserId ? '当前登录账号' : '收银台账号' }}
                     </p>
                   </div>
@@ -509,12 +510,12 @@ const submitResetPin = async () => {
 
         <form class="mt-6 space-y-4" @submit.prevent="submitCreate">
           <label class="block space-y-2">
-            <span class="text-sm font-medium text-slate-700">账号名称</span>
+            <span class="text-sm font-medium text-slate-700">手机号</span>
             <input
-              v-model="createForm.name"
+              v-model="createForm.phone"
               type="text"
-              maxlength="20"
-              placeholder="例如：前台 1 号"
+              maxlength="11"
+              placeholder="例如：13800138000"
               class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
             />
           </label>
@@ -590,7 +591,7 @@ const submitResetPin = async () => {
         <SheetHeader>
           <SheetTitle>重置账号 PIN</SheetTitle>
           <SheetDescription
-            >为「{{ resetTarget?.name || '-' }}」设置新的 6 位 PIN。</SheetDescription
+            >为「{{ resetTarget?.uid || '-' }}」设置新的 6 位 PIN。</SheetDescription
           >
         </SheetHeader>
 
@@ -653,17 +654,17 @@ const submitResetPin = async () => {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>编辑账号</SheetTitle>
-          <SheetDescription>编辑「{{ editTarget?.name || '-' }}」的基本信息。</SheetDescription>
+          <SheetDescription>编辑「{{ editTarget?.uid || '-' }}」的基本信息。</SheetDescription>
         </SheetHeader>
 
         <form class="mt-6 space-y-4" @submit.prevent="submitEdit">
           <label class="block space-y-2">
-            <span class="text-sm font-medium text-slate-700">账号名称</span>
+            <span class="text-sm font-medium text-slate-700">手机号</span>
             <input
-              v-model="editForm.name"
+              v-model="editForm.phone"
               type="text"
-              maxlength="20"
-              placeholder="例如：前台 1 号"
+              maxlength="11"
+              placeholder="例如：13800138000"
               class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
             />
           </label>
@@ -704,7 +705,7 @@ const submitResetPin = async () => {
             <button
               type="submit"
               class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-              :disabled="submitting || !editForm.name.trim()"
+              :disabled="submitting || !editForm.phone.trim()"
             >
               <LoaderCircle v-if="submitting" class="h-4 w-4 animate-spin" />
               <span>{{ submitting ? '保存中...' : '保存修改' }}</span>

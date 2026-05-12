@@ -5,7 +5,8 @@ import { USER_ROLES, normalizeUserRole, type UserRole } from '~~/shared/constant
 
 type AuthUserRow = {
   id: string
-  name: string
+  uid: string
+  phone: string
   pinHash: string
   role: string
   status: string
@@ -13,7 +14,8 @@ type AuthUserRow = {
 
 export type AuthUserRecord = {
   id: string
-  name: string
+  uid: string
+  phone: string
   pinHash: string
   role: UserRole
   status: string
@@ -31,7 +33,8 @@ export const isAuthUserStatus = (value: unknown): value is AuthUserStatus =>
 
 const toAuthUserRecord = (row: AuthUserRow): AuthUserRecord => ({
   id: row.id,
-  name: row.name,
+  uid: row.uid,
+  phone: row.phone,
   pinHash: row.pinHash,
   role: normalizeUserRole(row.role),
   status: row.status
@@ -39,7 +42,7 @@ const toAuthUserRecord = (row: AuthUserRow): AuthUserRecord => ({
 
 export const listAuthUsers = async () => {
   const users = await prisma.$queryRaw<AuthUserRow[]>`
-    SELECT "id", "name", "pinHash", "role", "status"
+    SELECT "id", "uid", "phone", "pinHash", "role", "status"
     FROM "AuthUser"
     ORDER BY "createdAt" ASC
   `
@@ -57,7 +60,7 @@ export const countAuthUsers = async () => {
 
 export const findAuthUserById = async (id: string) => {
   const rows = await prisma.$queryRaw<AuthUserRow[]>`
-    SELECT "id", "name", "pinHash", "role", "status"
+    SELECT "id", "uid", "phone", "pinHash", "role", "status"
     FROM "AuthUser"
     WHERE "id" = ${id}
     LIMIT 1
@@ -67,11 +70,16 @@ export const findAuthUserById = async (id: string) => {
   return row ? toAuthUserRecord(row) : null
 }
 
-export const createAuthUser = async (input: { name: string; pinHash: string; role: UserRole }) => {
+export const createAuthUser = async (input: {
+  uid: string
+  phone: string
+  pinHash: string
+  role: UserRole
+}) => {
   const id = crypto.randomUUID()
   await prisma.$executeRaw`
-    INSERT INTO "AuthUser" ("id", "name", "pinHash", "role", "status", "createdAt", "updatedAt")
-    VALUES (${id}, ${input.name}, ${input.pinHash}, ${input.role}, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO "AuthUser" ("id", "uid", "phone", "pinHash", "role", "status", "createdAt", "updatedAt")
+    VALUES (${id}, ${input.uid}, ${input.phone}, ${input.pinHash}, ${input.role}, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `
   return id
 }
@@ -88,14 +96,14 @@ export const countActiveAdminUsers = async () => {
 
 export const updateAuthUser = async (
   userId: string,
-  input: { name?: string; role?: UserRole; status?: AuthUserStatus }
+  input: { phone?: string; role?: UserRole; status?: AuthUserStatus }
 ) => {
   const updates: string[] = []
   const values: Array<string> = []
 
-  if (input.name !== undefined) {
-    updates.push(`"name" = ?`)
-    values.push(input.name)
+  if (input.phone !== undefined) {
+    updates.push(`"phone" = ?`)
+    values.push(input.phone)
   }
 
   if (input.role !== undefined) {
@@ -160,17 +168,30 @@ export const ensureLegacyAdminUserMigrated = async () => {
   }
 
   await createAuthUser({
-    name: '管理员',
+    uid: 'ADMIN0001',
+    phone: '00000000000',
     pinHash: legacy.adminPin,
     role: USER_ROLES.ADMIN
   })
 }
 
-export const findAuthUserByName = async (name: string) => {
+export const findAuthUserByUid = async (uid: string) => {
   const rows = await prisma.$queryRaw<AuthUserRow[]>`
-    SELECT "id", "name", "pinHash", "role", "status"
+    SELECT "id", "uid", "phone", "pinHash", "role", "status"
     FROM "AuthUser"
-    WHERE "name" = ${name}
+    WHERE "uid" = ${uid}
+    LIMIT 1
+  `
+
+  const row = rows[0]
+  return row ? toAuthUserRecord(row) : null
+}
+
+export const findAuthUserByPhone = async (phone: string) => {
+  const rows = await prisma.$queryRaw<AuthUserRow[]>`
+    SELECT "id", "uid", "phone", "pinHash", "role", "status"
+    FROM "AuthUser"
+    WHERE "phone" = ${phone}
     LIMIT 1
   `
 

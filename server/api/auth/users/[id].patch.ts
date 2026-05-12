@@ -11,7 +11,7 @@ import { getClientIp } from '~~/server/utils/request'
 import { isUserRole, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 type UpdateAuthUserBody = {
-  name?: string
+  phone?: string
   role?: UserRole
   status?: string
 }
@@ -54,11 +54,11 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody<UpdateAuthUserBody>(event)
-    const nextName = body.name?.trim()
+    const nextPhone = body.phone?.trim()
     const nextRole = body.role
     const nextStatus = body.status
 
-    if (nextName === undefined && nextRole === undefined && nextStatus === undefined) {
+    if (nextPhone === undefined && nextRole === undefined && nextStatus === undefined) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
@@ -66,11 +66,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (nextName !== undefined && !nextName) {
+    if (nextPhone !== undefined && !/^1\d{10}$/.test(nextPhone)) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '账号名称不能为空'
+        message: '手机号格式错误'
       })
     }
 
@@ -125,14 +125,14 @@ export default defineEventHandler(async (event) => {
     }
 
     await updateAuthUser(id, {
-      name: nextName,
+      phone: nextPhone,
       role: nextRole,
       status: nextStatus
     })
 
-    const detailParts: string[] = [`更新账号：${targetUser.name}`]
-    if (nextName !== undefined) {
-      detailParts.push(`名称 -> ${nextName}`)
+    const detailParts: string[] = [`更新账号：${targetUser.uid}`]
+    if (nextPhone !== undefined) {
+      detailParts.push(`手机号 -> ${nextPhone}`)
     }
     if (nextRole !== undefined) {
       detailParts.push(`角色 -> ${nextRole}`)

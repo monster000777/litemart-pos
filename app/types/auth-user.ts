@@ -2,7 +2,8 @@ import type { UserRole } from '~~/shared/constants/rbac'
 
 export type AuthUserDto = {
   id: string
-  name: string
+  uid: string
+  phone: string
   role: UserRole
   status: string
 }
