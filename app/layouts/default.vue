@@ -9,6 +9,7 @@ import {
   LogOut,
   MonitorPlay,
   ScrollText,
+  Settings,
   ShoppingCart,
   Users
 } from 'lucide-vue-next'
@@ -30,7 +31,8 @@ const navItems = [
   { label: 'Copilot', title: '智能助手', to: '/ai', icon: Bot },
   { label: 'Users', title: '账号管理', to: '/users', icon: Users },
   { label: 'Logs', title: '操作日志', to: '/logs', icon: ScrollText },
-  { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay }
+  { label: 'Dashboard', title: '实时大屏', to: '/dashboard', icon: MonitorPlay },
+  { label: 'Settings', title: '系统设置', to: '/settings', icon: Settings }
 ]
 
 const visibleNavItems = computed(() =>

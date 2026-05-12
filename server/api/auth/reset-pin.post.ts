@@ -1,8 +1,7 @@
 import { H3Error } from 'h3'
 import { hashPin, isValidPinFormat, verifyPin } from '~~/server/services/auth-service'
 import {
-  findAuthUserById,
-  findAuthUserByPin,
+  findAuthUserByName,
   isPinInUse,
   updateAuthUserPin
 } from '~~/server/services/auth-user-service'
@@ -11,6 +10,7 @@ import { getClientIp } from '~~/server/utils/request'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 
 type ResetPinBody = {
+  uid?: string
   oldPin?: string
   newPin?: string
   confirmPin?: string
@@ -19,9 +19,18 @@ type ResetPinBody = {
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<ResetPinBody>(event)
+    const uid = body.uid?.trim() ?? ''
     const oldPin = body.oldPin?.trim() ?? ''
     const newPin = body.newPin?.trim() ?? ''
     const confirmPin = body.confirmPin?.trim() ?? ''
+
+    if (!uid) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '请输入账号名称'
+      })
+    }
 
     if (!isValidPinFormat(oldPin)) {
       throw createError({
@@ -55,6 +64,9 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // 验证需要提供 uid 和 oldPin，如果有 session，默认使用 session 的 uid。但这属于公共接口，统一用 body 的 uid
+    const userId = event.context.auth?.user?.id
+
     const limiter = getPinRateLimiter()
     const clientIp = getClientIp(event)
     const remainingLock = limiter.check(clientIp)
@@ -67,15 +79,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const userId = event.context.auth?.user?.id
-    let user = userId ? await findAuthUserById(userId) : null
-    let pinAlreadyVerified = false
-
-    if (!user) {
-      user = await findAuthUserByPin(oldPin)
-      pinAlreadyVerified = !!user
-    }
-
+    const user = await findAuthUserByName(uid)
     if (!user || user.status !== 'ACTIVE') {
       const newLockSeconds = limiter.recordFailure(clientIp)
       if (newLockSeconds !== null) {
@@ -89,28 +93,30 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: '旧 PIN 错误或账号已停用'
+        message: '账号不存在或已停用'
       })
     }
 
-    if (!pinAlreadyVerified) {
-      const matched = await verifyPin(oldPin, user.pinHash)
-      if (!matched) {
-        const newLockSeconds = limiter.recordFailure(clientIp)
-        if (newLockSeconds !== null) {
-          throw createError({
-            statusCode: 429,
-            statusMessage: 'Too Many Requests',
-            message: `连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
-            data: { lockSeconds: newLockSeconds }
-          })
-        }
+    if (userId && user.id !== userId) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Forbidden',
+        message: '无权修改其他账号的 PIN'
+      })
+    }
+
+    const matched = await verifyPin(oldPin, user.pinHash)
+    if (!matched) {
+      const newLockSeconds = limiter.recordFailure(clientIp)
+      if (newLockSeconds !== null) {
         throw createError({
-          statusCode: 401,
-          statusMessage: 'Unauthorized',
-          message: '旧 PIN 错误'
+          statusCode: 429,
+          statusMessage: 'Too Many Requests',
+          message: `连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
+          data: { lockSeconds: newLockSeconds }
         })
       }
+      throw createError({ statusCode: 401, statusMessage: 'Unauthorized', message: '旧 PIN 错误' })
     }
 
     limiter.reset(clientIp)
@@ -127,13 +133,9 @@ export default defineEventHandler(async (event) => {
     await updateAuthUserPin(user.id, hashedNewPin)
     await writeAuditLog(AUDIT_ACTIONS.RESET_PIN, `PIN 已重置：${user.name}`, clientIp)
 
-    return {
-      success: true
-    }
+    return { success: true }
   } catch (error) {
-    if (error instanceof H3Error) {
-      throw error
-    }
+    if (error instanceof H3Error) throw error
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',

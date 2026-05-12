@@ -1,179 +1,88 @@
 <script setup lang="ts">
-import { ArrowLeft, LoaderCircle, RotateCcw } from 'lucide-vue-next'
+import { Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
 import type { UserRole } from '~~/shared/constants/rbac'
 
-definePageMeta({
-  layout: false
-})
+definePageMeta({ layout: false })
 
-type AuthStatusDto = {
-  initialized: boolean
-}
+type AuthStatusDto = { initialized: boolean }
+type AuthMutationResponse = { success: boolean; role: UserRole }
 
 const MODE_LOGIN = 'login'
 const MODE_REGISTER = 'register'
 const MODE_RESET = 'reset'
-const STEP_PIN = 'pin'
-const STEP_CONFIRM = 'confirm'
-const STEP_OLD = 'old'
-const STEP_NEW = 'new'
-const STEP_NEW_CONFIRM = 'new_confirm'
 
-type Mode = typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RESET
-type RegisterStep = typeof STEP_PIN | typeof STEP_CONFIRM
-type ResetStep = typeof STEP_OLD | typeof STEP_NEW | typeof STEP_NEW_CONFIRM
-
-const mode = ref<Mode>(MODE_LOGIN)
-const registerStep = ref<RegisterStep>(STEP_PIN)
-const resetStep = ref<ResetStep>(STEP_OLD)
-
-const loginPin = ref('')
-const registerPin = ref('')
-const confirmPin = ref('')
-const resetOldPin = ref('')
-const resetNewPin = ref('')
-const resetConfirmPin = ref('')
-
+const mode = ref<typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RESET>(MODE_LOGIN)
+const isInitialized = ref(false)
 const checkingStatus = ref(true)
 const submitting = ref(false)
-const errorMessage = ref('')
-const helperMessage = ref('')
+const showPin = ref(false)
+const showConfirmPin = ref(false)
 const leaving = ref(false)
 const lockSeconds = ref(0)
 const lockTimer = ref<ReturnType<typeof setInterval> | null>(null)
-const isInitialized = ref(false)
+const errorMessage = ref('')
+const helperMessage = ref('')
+
+const loginUid = ref('')
+const loginPin = ref('')
+const regUid = ref('')
+const regPin = ref('')
+const regConfirmPin = ref('')
+const regInviteCode = ref('')
+const resetUid = ref('')
+const resetOldPin = ref('')
+const resetNewPin = ref('')
+const resetConfirmPin = ref('')
 
 const { getApiErrorMessage } = useApiError()
 const route = useRoute()
 const authState = useState<boolean | null>('auth:verified', () => null)
 const authRole = useState<UserRole | null>('auth:role', () => null)
 
-const activePin = computed({
-  get: () => {
-    if (mode.value === MODE_LOGIN) return loginPin.value
-    if (mode.value === MODE_REGISTER) {
-      return registerStep.value === STEP_PIN ? registerPin.value : confirmPin.value
-    }
-    if (resetStep.value === STEP_OLD) return resetOldPin.value
-    if (resetStep.value === STEP_NEW) return resetNewPin.value
-    return resetConfirmPin.value
-  },
-  set: (value: string) => {
-    if (mode.value === MODE_LOGIN) {
-      loginPin.value = value
-      return
-    }
-    if (mode.value === MODE_REGISTER) {
-      if (registerStep.value === STEP_PIN) {
-        registerPin.value = value
-        return
-      }
-      confirmPin.value = value
-      return
-    }
-    if (resetStep.value === STEP_OLD) {
-      resetOldPin.value = value
-      return
-    }
-    if (resetStep.value === STEP_NEW) {
-      resetNewPin.value = value
-      return
-    }
-    resetConfirmPin.value = value
-  }
-})
-
-const displayPin = computed(() => activePin.value.padEnd(6, '•'))
-
-const pageTitle = computed(() => {
-  if (mode.value === MODE_LOGIN) return 'PIN 登录'
-  if (mode.value === MODE_REGISTER) return 'PIN 注册'
-  return '重置 PIN'
-})
-
-const pageDescription = computed(() => {
-  if (mode.value === MODE_LOGIN) return '输入 6 位账号 PIN 进入工作台'
-  if (mode.value === MODE_REGISTER) {
-    return registerStep.value === STEP_PIN ? '设置首个管理员账号 PIN' : '请再次输入 PIN 确认'
-  }
-  if (resetStep.value === STEP_OLD) return '输入当前 PIN 验证身份'
-  if (resetStep.value === STEP_NEW) return '设置新的 6 位 PIN'
-  return '再次输入新 PIN 确认'
-})
-
 const isLocked = computed(() => lockSeconds.value > 0)
 const isDisabled = computed(() => submitting.value || checkingStatus.value || isLocked.value)
 
-const resetMessages = () => {
-  errorMessage.value = ''
-  helperMessage.value = ''
-}
-
-const appendDigit = (digit: string) => {
-  if (isDisabled.value || activePin.value.length >= 6) return
-  resetMessages()
-  activePin.value += digit
-}
-
-const removeLast = () => {
-  if (isDisabled.value) return
-  resetMessages()
-  activePin.value = activePin.value.slice(0, -1)
-}
-
-const clearPin = () => {
-  if (isDisabled.value) return
-  resetMessages()
-  activePin.value = ''
-}
-
-const startLockCountdown = (seconds: number) => {
+const startLockCountdown = (s: number) => {
   if (lockTimer.value) clearInterval(lockTimer.value)
-  lockSeconds.value = seconds
+  lockSeconds.value = s
   lockTimer.value = setInterval(() => {
     lockSeconds.value--
-    if (lockSeconds.value <= 0) {
-      if (lockTimer.value) clearInterval(lockTimer.value)
+    if (lockSeconds.value <= 0 && lockTimer.value) {
+      clearInterval(lockTimer.value)
       lockTimer.value = null
     }
   }, 1000)
 }
 
-const completeAuthFlow = async () => {
-  authState.value = true
-  leaving.value = true
-  await new Promise((resolve) => setTimeout(resolve, 220))
-  const redirect = route.query.redirect as string | undefined
-  await navigateTo(redirect || '/')
-}
-
-type AuthMutationResponse = {
-  success: boolean
-  role: UserRole
-}
-
 const handleApiError = (error: unknown, fallback: string) => {
-  const err = error as {
-    data?: { data?: { lockSeconds?: number } }
-  } | null
-  if (err?.data?.data?.lockSeconds) {
-    startLockCountdown(err.data.data.lockSeconds)
-  }
+  const err = error as { data?: { data?: { lockSeconds?: number } } } | null
+  if (err?.data?.data?.lockSeconds) startLockCountdown(err.data.data.lockSeconds)
   errorMessage.value = getApiErrorMessage(error, fallback)
 }
 
+const completeAuthFlow = async () => {
+  authState.value = true
+  leaving.value = true
+  await new Promise((r) => setTimeout(r, 220))
+  await navigateTo((route.query.redirect as string) || '/')
+}
+
 const login = async () => {
-  if (submitting.value) return
+  errorMessage.value = ''
+  if (!loginUid.value.trim()) {
+    errorMessage.value = '请输入账号'
+    return
+  }
   if (loginPin.value.length !== 6) {
     errorMessage.value = '请输入 6 位 PIN'
     return
   }
+  if (submitting.value || isLocked.value) return
   submitting.value = true
-  resetMessages()
   try {
     const result = await $fetch<AuthMutationResponse>('/api/auth/login', {
       method: 'POST',
-      body: { pin: loginPin.value }
+      body: { uid: loginUid.value.trim(), pin: loginPin.value }
     })
     authRole.value = result.role
     await completeAuthFlow()
@@ -188,23 +97,35 @@ const login = async () => {
 }
 
 const register = async () => {
-  if (submitting.value) return
-  if (registerPin.value.length !== 6 || confirmPin.value.length !== 6) {
-    errorMessage.value = '请完成两次 6 位 PIN 输入'
+  errorMessage.value = ''
+  if (!regUid.value.trim() || regUid.value.trim().length < 2) {
+    errorMessage.value = '账号至少 2 个字符'
     return
   }
+  if (regPin.value.length !== 6) {
+    errorMessage.value = '请输入 6 位 PIN'
+    return
+  }
+  if (regPin.value !== regConfirmPin.value) {
+    errorMessage.value = '两次 PIN 不一致'
+    return
+  }
+  if (submitting.value) return
   submitting.value = true
-  resetMessages()
   try {
     const result = await $fetch<AuthMutationResponse>('/api/auth/register', {
       method: 'POST',
-      body: { pin: registerPin.value, confirmPin: confirmPin.value }
+      body: {
+        uid: regUid.value.trim(),
+        pin: regPin.value,
+        confirmPin: regConfirmPin.value,
+        inviteCode: regInviteCode.value.trim()
+      }
     })
     authRole.value = result.role
     await completeAuthFlow()
   } catch (error) {
     handleApiError(error, '注册失败，请稍后重试')
-    confirmPin.value = ''
     authState.value = false
     authRole.value = null
   } finally {
@@ -213,93 +134,43 @@ const register = async () => {
 }
 
 const resetPin = async () => {
+  errorMessage.value = ''
+  if (
+    !resetUid.value.trim() ||
+    resetOldPin.value.length !== 6 ||
+    resetNewPin.value.length !== 6 ||
+    resetConfirmPin.value.length !== 6
+  ) {
+    errorMessage.value = '请完整填写所有字段'
+    return
+  }
+  if (resetNewPin.value !== resetConfirmPin.value) {
+    errorMessage.value = '新 PIN 两次输入不一致'
+    return
+  }
   if (submitting.value) return
   submitting.value = true
-  resetMessages()
   try {
     await $fetch('/api/auth/reset-pin', {
       method: 'POST',
       body: {
+        uid: resetUid.value.trim(),
         oldPin: resetOldPin.value,
         newPin: resetNewPin.value,
         confirmPin: resetConfirmPin.value
       }
     })
     mode.value = MODE_LOGIN
-    loginPin.value = ''
+    resetUid.value = ''
     resetOldPin.value = ''
     resetNewPin.value = ''
     resetConfirmPin.value = ''
-    helperMessage.value = 'PIN 重置成功，请使用新 PIN 登录'
+    helperMessage.value = 'PIN 重置成功，请重新登录'
   } catch (error) {
     handleApiError(error, 'PIN 重置失败，请稍后重试')
-    if (resetStep.value === STEP_OLD) {
-      resetOldPin.value = ''
-    } else {
-      resetConfirmPin.value = ''
-    }
-    authRole.value = null
   } finally {
     submitting.value = false
   }
-}
-
-const submitCurrent = async () => {
-  if (mode.value === MODE_LOGIN) {
-    await login()
-    return
-  }
-
-  if (mode.value === MODE_REGISTER) {
-    if (registerStep.value === STEP_PIN) {
-      if (registerPin.value.length !== 6) return
-      registerStep.value = STEP_CONFIRM
-      helperMessage.value = '请再次输入相同 PIN 进行确认'
-      return
-    }
-    if (registerPin.value !== confirmPin.value) {
-      errorMessage.value = '两次输入的 PIN 不一致，请重新确认'
-      confirmPin.value = ''
-      return
-    }
-    await register()
-    return
-  }
-
-  if (resetStep.value === STEP_OLD) {
-    if (resetOldPin.value.length !== 6) return
-    resetStep.value = STEP_NEW
-    helperMessage.value = '请输入新的 6 位 PIN'
-    return
-  }
-  if (resetStep.value === STEP_NEW) {
-    if (resetNewPin.value.length !== 6) return
-    resetStep.value = STEP_NEW_CONFIRM
-    helperMessage.value = '再次输入新 PIN 确认'
-    return
-  }
-  if (resetNewPin.value !== resetConfirmPin.value) {
-    errorMessage.value = '两次新 PIN 不一致'
-    resetConfirmPin.value = ''
-    return
-  }
-  await resetPin()
-}
-
-const switchToReset = () => {
-  mode.value = MODE_RESET
-  resetStep.value = STEP_OLD
-  resetOldPin.value = ''
-  resetNewPin.value = ''
-  resetConfirmPin.value = ''
-  resetMessages()
-  helperMessage.value = '输入当前 PIN 以验证身份'
-}
-
-const backToLogin = () => {
-  mode.value = MODE_LOGIN
-  loginPin.value = ''
-  resetMessages()
 }
 
 const resolveMode = async () => {
@@ -308,142 +179,598 @@ const resolveMode = async () => {
     const status = await $fetch<AuthStatusDto>('/api/auth/status')
     isInitialized.value = status.initialized
     mode.value = status.initialized ? MODE_LOGIN : MODE_REGISTER
-  } catch (error) {
+  } catch {
     mode.value = MODE_LOGIN
-    errorMessage.value = getApiErrorMessage(error, '获取认证状态失败，请刷新重试')
   } finally {
     checkingStatus.value = false
   }
 }
 
-watch(
-  () => activePin.value.length,
-  async (length) => {
-    if (length === 6 && !submitting.value && !checkingStatus.value && !isLocked.value) {
-      await submitCurrent()
-    }
-  }
-)
-
-const onKeydown = (e: KeyboardEvent) => {
-  if (e.key >= '0' && e.key <= '9') appendDigit(e.key)
-  else if (e.key === 'Backspace') removeLast()
-  else if (e.key === 'Enter') submitCurrent()
+const switchMode = (m: typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RESET) => {
+  mode.value = m
+  errorMessage.value = ''
+  helperMessage.value = ''
 }
 
-onMounted(async () => {
-  await resolveMode()
-  window.addEventListener('keydown', onKeydown)
-})
-
+onMounted(resolveMode)
 onUnmounted(() => {
-  window.removeEventListener('keydown', onKeydown)
   if (lockTimer.value) clearInterval(lockTimer.value)
 })
 </script>
 
 <template>
-  <div
-    class="flex min-h-screen items-center justify-center bg-zinc-50 px-6 transition-opacity duration-300"
-    :class="leaving ? 'opacity-0' : 'opacity-100'"
-  >
-    <section class="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-8">
-      <header class="text-center">
-        <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">LiteMart POS</p>
-        <h1 class="mt-2 text-xl font-semibold tracking-tight text-slate-900">{{ pageTitle }}</h1>
-        <p class="mt-2 text-sm text-slate-500">{{ pageDescription }}</p>
-      </header>
-
-      <div class="mt-6 rounded-xl border border-slate-100 bg-zinc-50 px-4 py-3 text-center">
-        <p class="font-mono text-2xl tracking-[0.4em] text-slate-800">{{ displayPin }}</p>
+  <div class="login-root" :class="leaving ? 'fading' : ''">
+    <!-- 左侧氛围区 -->
+    <div class="scene-panel">
+      <div class="scene-image" />
+      <div class="scene-overlay" />
+      <div class="scene-content">
+        <div class="scene-brand">
+          <svg width="28" height="28" viewBox="0 0 40 40" fill="none" class="scene-logo">
+            <rect width="40" height="40" rx="10" fill="white" fill-opacity="0.12" />
+            <path
+              d="M12 16h16M14 16l2-6h8l2 6M12 16l2 14h12l2-14"
+              stroke="white"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path d="M17 22h6M17 26h6" stroke="white" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span class="scene-brand-name">LiteMart</span>
+        </div>
+        <div class="scene-quote">
+          <p class="quote-text">简约即美</p>
+          <p class="quote-sub">从容掌控每一次交易</p>
+        </div>
       </div>
+    </div>
 
-      <p
-        v-if="isLocked"
-        class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
-      >
-        操作过于频繁，请 {{ lockSeconds }} 秒后重试
-      </p>
-      <p
-        v-else-if="errorMessage"
-        class="mt-4 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-      >
-        {{ errorMessage }}
-      </p>
-      <p
-        v-else-if="helperMessage"
-        class="mt-4 rounded-xl border border-slate-100 bg-zinc-50 px-3 py-2 text-sm text-slate-600"
-      >
-        {{ helperMessage }}
-      </p>
+    <!-- 右侧表单区 -->
+    <div class="form-panel">
+      <div class="form-card">
+        <!-- 标题 -->
+        <div class="card-heading">
+          <h2 class="heading-title">
+            {{
+              mode === MODE_LOGIN
+                ? '登录'
+                : mode === MODE_REGISTER
+                  ? isInitialized
+                    ? '员工注册'
+                    : '初始化账号'
+                  : '重置 PIN'
+            }}
+          </h2>
+          <p class="heading-sub">
+            {{
+              mode === MODE_LOGIN
+                ? '输入账号与 PIN 开始工作'
+                : mode === MODE_REGISTER
+                  ? isInitialized
+                    ? '请输入邀请码完成注册'
+                    : '首次使用，请设置管理员账号'
+                  : '验证身份后设置新 PIN'
+            }}
+          </p>
+        </div>
 
-      <div class="mt-6 grid grid-cols-3 gap-3">
-        <button
-          v-for="digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
-          :key="digit"
-          type="button"
-          class="h-14 rounded-xl border border-slate-100 bg-white text-base font-medium text-slate-800 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isDisabled"
-          @click="appendDigit(digit)"
-        >
-          {{ digit }}
-        </button>
-        <button
-          type="button"
-          class="h-14 rounded-xl border border-slate-100 bg-white text-sm font-medium text-slate-600 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isDisabled"
-          @click="clearPin"
-        >
-          清空
-        </button>
-        <button
-          type="button"
-          class="h-14 rounded-xl border border-slate-100 bg-white text-base font-medium text-slate-800 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isDisabled"
-          @click="appendDigit('0')"
-        >
-          0
-        </button>
-        <button
-          type="button"
-          class="h-14 rounded-xl border border-slate-100 bg-white text-sm font-medium text-slate-600 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="isDisabled"
-          @click="removeLast"
-        >
-          删除
-        </button>
+        <!-- 提示 -->
+        <div v-if="isLocked" class="msg msg-warn">{{ lockSeconds }} 秒后可重试</div>
+        <div v-else-if="errorMessage" class="msg msg-error">{{ errorMessage }}</div>
+        <div v-else-if="helperMessage" class="msg msg-info">{{ helperMessage }}</div>
+
+        <!-- 登录表单 -->
+        <template v-if="mode === MODE_LOGIN">
+          <div class="fields">
+            <div class="field">
+              <input
+                v-model="loginUid"
+                type="text"
+                placeholder="账号"
+                maxlength="20"
+                autocomplete="username"
+                class="field-input"
+                :disabled="isDisabled"
+                @keydown.enter="login"
+              />
+            </div>
+            <div class="field">
+              <div class="pin-wrap">
+                <input
+                  v-model="loginPin"
+                  :type="showPin ? 'text' : 'password'"
+                  placeholder="PIN 码"
+                  maxlength="6"
+                  inputmode="numeric"
+                  autocomplete="current-password"
+                  class="field-input pin-input"
+                  :disabled="isDisabled"
+                  @keydown.enter="login"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :disabled="isDisabled"
+                  @click="showPin = !showPin"
+                >
+                  <EyeOff v-if="showPin" class="icon" />
+                  <Eye v-else class="icon" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" :disabled="isDisabled" @click="login">
+            <LoaderCircle v-if="submitting || checkingStatus" class="spin icon" />
+            <span v-else>进入</span>
+          </button>
+          <div
+            v-if="isInitialized"
+            class="card-links"
+            style="display: flex; justify-content: space-between"
+          >
+            <button type="button" class="link-btn" @click="switchMode(MODE_REGISTER)">
+              员工注册
+            </button>
+            <button type="button" class="link-btn" @click="switchMode(MODE_RESET)">忘记 PIN</button>
+          </div>
+        </template>
+
+        <!-- 注册表单 -->
+        <template v-else-if="mode === MODE_REGISTER">
+          <div class="fields">
+            <div v-if="isInitialized" class="field">
+              <input
+                v-model="regInviteCode"
+                type="text"
+                placeholder="6位邀请码"
+                maxlength="6"
+                class="field-input"
+                :disabled="isDisabled"
+                style="text-transform: uppercase"
+              />
+            </div>
+            <div class="field">
+              <input
+                v-model="regUid"
+                type="text"
+                :placeholder="isInitialized ? '账号名' : '管理员账号'"
+                maxlength="20"
+                class="field-input"
+                :disabled="isDisabled"
+              />
+            </div>
+            <div class="field">
+              <div class="pin-wrap">
+                <input
+                  v-model="regPin"
+                  :type="showPin ? 'text' : 'password'"
+                  placeholder="设置 PIN 码"
+                  maxlength="6"
+                  inputmode="numeric"
+                  class="field-input pin-input"
+                  :disabled="isDisabled"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :disabled="isDisabled"
+                  @click="showPin = !showPin"
+                >
+                  <EyeOff v-if="showPin" class="icon" />
+                  <Eye v-else class="icon" />
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <div class="pin-wrap">
+                <input
+                  v-model="regConfirmPin"
+                  :type="showConfirmPin ? 'text' : 'password'"
+                  placeholder="确认 PIN 码"
+                  maxlength="6"
+                  inputmode="numeric"
+                  class="field-input pin-input"
+                  :disabled="isDisabled"
+                  @keydown.enter="register"
+                />
+                <button
+                  type="button"
+                  class="pin-toggle"
+                  :disabled="isDisabled"
+                  @click="showConfirmPin = !showConfirmPin"
+                >
+                  <EyeOff v-if="showConfirmPin" class="icon" />
+                  <Eye v-else class="icon" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <button class="btn-primary" :disabled="isDisabled" @click="register">
+            <LoaderCircle v-if="submitting" class="spin icon" />
+            <span v-else>{{ isInitialized ? '完成注册' : '完成初始化' }}</span>
+          </button>
+          <div v-if="isInitialized" class="card-links">
+            <button type="button" class="link-btn" @click="switchMode(MODE_LOGIN)">
+              <ArrowLeft class="icon-sm" /> 返回登录
+            </button>
+          </div>
+        </template>
+
+        <!-- 重置表单 -->
+        <template v-else-if="mode === MODE_RESET">
+          <div class="fields">
+            <div class="field">
+              <input
+                v-model="resetUid"
+                type="text"
+                placeholder="账号"
+                maxlength="20"
+                class="field-input"
+                :disabled="isDisabled"
+              />
+            </div>
+            <div class="field">
+              <input
+                v-model="resetOldPin"
+                type="password"
+                placeholder="当前 PIN"
+                maxlength="6"
+                inputmode="numeric"
+                class="field-input"
+                :disabled="isDisabled"
+              />
+            </div>
+            <div class="field">
+              <input
+                v-model="resetNewPin"
+                type="password"
+                placeholder="新 PIN"
+                maxlength="6"
+                inputmode="numeric"
+                class="field-input"
+                :disabled="isDisabled"
+              />
+            </div>
+            <div class="field">
+              <input
+                v-model="resetConfirmPin"
+                type="password"
+                placeholder="确认新 PIN"
+                maxlength="6"
+                inputmode="numeric"
+                class="field-input"
+                :disabled="isDisabled"
+                @keydown.enter="resetPin"
+              />
+            </div>
+          </div>
+          <button class="btn-primary" :disabled="isDisabled" @click="resetPin">
+            <LoaderCircle v-if="submitting" class="spin icon" />
+            <span v-else>确认重置</span>
+          </button>
+          <div class="card-links">
+            <button type="button" class="link-btn" @click="switchMode(MODE_LOGIN)">返回登录</button>
+          </div>
+        </template>
       </div>
-
-      <button
-        type="button"
-        class="mt-4 inline-flex h-12 w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:bg-slate-300"
-        :disabled="isDisabled || activePin.length !== 6"
-        @click="submitCurrent"
-      >
-        <LoaderCircle v-if="submitting || checkingStatus" class="h-4 w-4 animate-spin" />
-        <span v-else>{{ mode === MODE_LOGIN ? '进入工作台' : '继续' }}</span>
-      </button>
-
-      <div class="mt-4 flex justify-center">
-        <button
-          v-if="mode === MODE_LOGIN && isInitialized"
-          type="button"
-          class="inline-flex items-center gap-1.5 text-xs text-slate-400 transition hover:text-slate-600"
-          @click="switchToReset"
-        >
-          <RotateCcw class="h-3.5 w-3.5" />
-          重置 PIN
-        </button>
-        <button
-          v-if="mode === MODE_RESET"
-          type="button"
-          class="inline-flex items-center gap-1.5 text-xs text-slate-400 transition hover:text-slate-600"
-          @click="backToLogin"
-        >
-          <ArrowLeft class="h-3.5 w-3.5" />
-          返回登录
-        </button>
-      </div>
-    </section>
+    </div>
   </div>
 </template>
+
+<style scoped>
+/* ===== 整体布局 ===== */
+.login-root {
+  display: flex;
+  min-height: 100vh;
+  transition: opacity 0.25s ease;
+}
+.login-root.fading {
+  opacity: 0;
+}
+
+/* ===== 左侧氛围区 ===== */
+.scene-panel {
+  position: relative;
+  flex: 0 0 58%;
+  overflow: hidden;
+}
+
+/* 氛围背景：纯 CSS 渐变；替换为 background-image: url('/images/bg.jpg') 则使用自定义照片 */
+.scene-image {
+  position: absolute;
+  inset: 0;
+  background:
+    /* 顶部雾气 */
+    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(55, 50, 45, 0.5) 0%, transparent 60%),
+    /* 山谷暗部 */
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(15, 12, 10, 0.6) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 75%, rgba(15, 12, 10, 0.5) 0%, transparent 60%),
+    /* 主背景层次 */
+    linear-gradient(
+        175deg,
+        #0f0d0b 0%,
+        #1e1a16 18%,
+        #2b2520 35%,
+        #36302a 50%,
+        #2a2420 68%,
+        #1c1916 85%,
+        #141210 100%
+      );
+}
+
+.scene-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 8, 6, 0.15) 0%,
+    rgba(10, 8, 6, 0.05) 30%,
+    rgba(10, 8, 6, 0.45) 100%
+  );
+}
+
+.scene-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 3rem 3.25rem;
+}
+
+.scene-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.scene-logo {
+  opacity: 0.85;
+}
+
+.scene-brand-name {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.scene-quote {
+  margin-bottom: 0.25rem;
+}
+
+.quote-text {
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.625rem;
+  line-height: 1.15;
+}
+
+.quote-sub {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+
+/* ===== 右侧表单区 ===== */
+.form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafaf9;
+  padding: 2rem 2.5rem;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 320px;
+  animation: form-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes form-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 标题 */
+.card-heading {
+  margin-bottom: 2rem;
+}
+
+.heading-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #1c1917;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.375rem;
+}
+
+.heading-sub {
+  font-size: 0.8125rem;
+  color: #a8a29e;
+  margin: 0;
+}
+
+/* 消息 */
+.msg {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  margin-bottom: 0.875rem;
+  text-align: center;
+  border: 1px solid;
+}
+.msg-warn {
+  background: #fefce8;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.msg-error {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+}
+.msg-info {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+/* 字段 */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.125rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  color: #1c1917;
+  background: white;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+  box-sizing: border-box;
+}
+.field-input:focus {
+  border-color: rgba(28, 25, 23, 0.2);
+  box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.04);
+}
+.field-input:disabled {
+  background: #f5f4f2;
+  color: #a8a29e;
+  cursor: not-allowed;
+}
+.field-input::placeholder {
+  color: #d6d3d1;
+}
+
+/* PIN */
+.pin-wrap {
+  position: relative;
+}
+.pin-input {
+  padding-right: 2.75rem;
+}
+.pin-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #a8a29e;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.pin-toggle:hover:not(:disabled) {
+  color: #78716c;
+}
+.pin-toggle:disabled {
+  cursor: not-allowed;
+}
+
+/* 按钮 */
+.btn-primary {
+  width: 100%;
+  height: 2.75rem;
+  background: #1c1917;
+  color: #fafaf9;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #292524;
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.btn-primary:disabled {
+  background: #d6d3d1;
+  color: #fafaf9;
+  cursor: not-allowed;
+}
+
+/* 链接 */
+.card-links {
+  margin-top: 0.875rem;
+  display: flex;
+  justify-content: center;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: #a8a29e;
+  padding: 0;
+  transition: color 0.15s;
+}
+.link-btn:hover {
+  color: #78716c;
+}
+
+/* 图标 */
+.icon {
+  width: 1rem;
+  height: 1rem;
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .scene-panel {
+    display: none;
+  }
+  .form-panel {
+    flex: 1;
+  }
+}
+</style>

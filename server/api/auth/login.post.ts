@@ -1,10 +1,15 @@
 import { H3Error } from 'h3'
-import { createSessionToken, hashPin, isValidPinFormat } from '~~/server/services/auth-service'
+import {
+  createSessionToken,
+  hashPin,
+  isValidPinFormat,
+  verifyPin
+} from '~~/server/services/auth-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
 import {
   createAuthUser,
   ensureLegacyAdminUserMigrated,
-  findAuthUserByPin
+  findAuthUserByName
 } from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
@@ -13,13 +18,23 @@ import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { USER_ROLES } from '~~/shared/constants/rbac'
 
 type LoginBody = {
+  uid?: string
   pin?: string
 }
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody<LoginBody>(event)
+    const uid = body.uid?.trim() ?? ''
     const pin = body.pin?.trim() ?? ''
+
+    if (!uid) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '请输入账号名称'
+      })
+    }
 
     if (!isValidPinFormat(pin)) {
       throw createError({
@@ -79,9 +94,28 @@ export default defineEventHandler(async (event) => {
 
     await ensureLegacyAdminUserMigrated()
 
-    const user = await findAuthUserByPin(pin)
-    if (!user) {
-      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, 'PIN 错误', clientIp)
+    const user = await findAuthUserByName(uid)
+    if (!user || user.status !== 'ACTIVE') {
+      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `账号不存在或已停用：${uid}`, clientIp)
+      const newLockSeconds = limiter.recordFailure(clientIp)
+      if (newLockSeconds !== null) {
+        throw createError({
+          statusCode: 429,
+          statusMessage: 'Too Many Requests',
+          message: `连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
+          data: { lockSeconds: newLockSeconds }
+        })
+      }
+      throw createError({
+        statusCode: 401,
+        statusMessage: 'Unauthorized',
+        message: '账号不存在或已停用'
+      })
+    }
+
+    const pinValid = await verifyPin(pin, user.pinHash)
+    if (!pinValid) {
+      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `PIN 错误：${uid}`, clientIp)
       const newLockSeconds = limiter.recordFailure(clientIp)
       if (newLockSeconds !== null) {
         throw createError({

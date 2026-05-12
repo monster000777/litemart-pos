@@ -427,7 +427,9 @@ const submitResetPin = async () => {
                 </span>
               </TableCell>
               <TableCell class="text-sm text-slate-500">
-                {{ user.role === USER_ROLES.ADMIN ? '拥有完整后台权限' : '使用独立 PIN 登录' }}
+                {{
+                  user.role === USER_ROLES.ADMIN ? '拥有完整后台权限' : '使用账号名称 + PIN 登录'
+                }}
               </TableCell>
               <TableCell>
                 <div class="flex flex-wrap gap-2">

@@ -166,6 +166,18 @@ export const ensureLegacyAdminUserMigrated = async () => {
   })
 }
 
+export const findAuthUserByName = async (name: string) => {
+  const rows = await prisma.$queryRaw<AuthUserRow[]>`
+    SELECT "id", "name", "pinHash", "role", "status"
+    FROM "AuthUser"
+    WHERE "name" = ${name}
+    LIMIT 1
+  `
+
+  const row = rows[0]
+  return row ? toAuthUserRecord(row) : null
+}
+
 export const findAuthUserByPin = async (pin: string) => {
   await ensureLegacyAdminUserMigrated()
 

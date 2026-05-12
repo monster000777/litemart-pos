@@ -42,7 +42,7 @@ export const canAccessAppPath = (role: UserRole | null | undefined, path: string
     return false
   }
 
-  if (path === '/' || path.startsWith('/orders')) {
+  if (path === '/' || path.startsWith('/orders') || path.startsWith('/settings')) {
     return true
   }
 

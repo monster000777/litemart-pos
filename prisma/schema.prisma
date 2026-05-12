@@ -57,11 +57,12 @@ model OrderItem {
 }
 
 model Config {
-  id        String   @id @default("singleton")
-  adminPin  String
-  role      String   @default("ADMIN")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default("singleton")
+  adminPin   String
+  role       String   @default("ADMIN")
+  inviteCode String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model AuthUser {
