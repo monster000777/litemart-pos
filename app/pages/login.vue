@@ -380,7 +380,7 @@ onUnmounted(() => {
               <input
                 v-model="regPhone"
                 type="text"
-                placeholder="手机号 (用于找回 PIN)"
+                placeholder="手机号"
                 maxlength="11"
                 class="field-input"
                 :disabled="isDisabled"
@@ -437,7 +437,7 @@ onUnmounted(() => {
             <span v-else>{{ isInitialized ? '完成注册' : '完成初始化' }}</span>
           </button>
           <div v-if="isInitialized" class="card-links">
-            <button type="button" class="link-btn" @click="switchMode(MODE_LOGIN)">
+            <button type="button" class="link-btn link-btn-arrow" @click="switchMode(MODE_LOGIN)">
               <ArrowLeft class="icon-sm" /> 返回登录
             </button>
           </div>
@@ -450,30 +450,30 @@ onUnmounted(() => {
               <input
                 v-model="resetPhone"
                 type="text"
-                placeholder="注册手机号"
+                placeholder="手机号"
                 maxlength="11"
                 class="field-input"
                 :disabled="isDisabled"
               />
             </div>
-            <div class="field flex gap-2">
+            <div class="otp-row">
               <input
                 v-model="resetOtpCode"
                 type="text"
                 placeholder="短信验证码"
                 maxlength="6"
-                class="field-input flex-1"
+                class="field-input"
                 :disabled="isDisabled"
               />
               <button
                 type="button"
-                class="rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                class="otp-btn"
                 :disabled="
                   isDisabled || otpCountdown > 0 || !resetPhone || resetPhone.length !== 11
                 "
                 @click="sendOtp"
               >
-                {{ otpCountdown > 0 ? `${otpCountdown}s 后重发` : '获取验证码' }}
+                {{ otpCountdown > 0 ? `${otpCountdown}s` : '获取验证码' }}
               </button>
             </div>
             <div class="field">
@@ -527,7 +527,9 @@ onUnmounted(() => {
             <span v-else>确认重置</span>
           </button>
           <div class="card-links">
-            <button type="button" class="link-btn" @click="switchMode(MODE_LOGIN)">返回登录</button>
+            <button type="button" class="link-btn link-btn-arrow" @click="switchMode(MODE_LOGIN)">
+              <ArrowLeft class="icon-sm" /> 返回登录
+            </button>
           </div>
         </template>
       </div>
@@ -553,27 +555,14 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 氛围背景：纯 CSS 渐变；替换为 background-image: url('/images/bg.jpg') 则使用自定义照片 */
+/* 氛围背景：使用实拍图片 */
 .scene-image {
   position: absolute;
   inset: 0;
-  background:
-    /* 顶部雾气 */
-    radial-gradient(ellipse 100% 50% at 50% -10%, rgba(55, 50, 45, 0.5) 0%, transparent 60%),
-    /* 山谷暗部 */
-    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(15, 12, 10, 0.6) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 75%, rgba(15, 12, 10, 0.5) 0%, transparent 60%),
-    /* 主背景层次 */
-    linear-gradient(
-        175deg,
-        #0f0d0b 0%,
-        #1e1a16 18%,
-        #2b2520 35%,
-        #36302a 50%,
-        #2a2420 68%,
-        #1c1916 85%,
-        #141210 100%
-      );
+  background-image: url('/images/山谷.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .scene-overlay {
@@ -581,9 +570,9 @@ onUnmounted(() => {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(10, 8, 6, 0.15) 0%,
-    rgba(10, 8, 6, 0.05) 30%,
-    rgba(10, 8, 6, 0.45) 100%
+    rgba(10, 8, 6, 0.25) 0%,
+    rgba(10, 8, 6, 0.1) 35%,
+    rgba(10, 8, 6, 0.55) 100%
   );
 }
 
@@ -827,11 +816,20 @@ onUnmounted(() => {
 .link-btn:hover {
   color: #78716c;
 }
+.link-btn-arrow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 
 /* 图标 */
 .icon {
   width: 1rem;
   height: 1rem;
+}
+.icon-sm {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 .spin {
   animation: spin 0.8s linear infinite;
@@ -840,6 +838,45 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 验证码行 */
+.otp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.otp-row .field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.otp-btn {
+  flex-shrink: 0;
+  height: 2.625rem;
+  padding: 0 0.875rem;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  border-radius: 0.375rem;
+  background: white;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #57534e;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+  white-space: nowrap;
+}
+.otp-btn:hover:not(:disabled) {
+  border-color: rgba(28, 25, 23, 0.25);
+  color: #1c1917;
+  background: #fafaf9;
+}
+.otp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* ===== 响应式 ===== */
