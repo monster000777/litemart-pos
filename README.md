@@ -372,6 +372,25 @@ npm run prisma:seed
 
 ## 测试
 
+### 单元测试
+
+```bash
+npm test          # 单次运行
+npm run test:watch # 监听模式
+```
+
+测试覆盖核心服务的纯函数逻辑：
+
+| 文件                       | 测试点                             |
+| -------------------------- | ---------------------------------- |
+| `customer-service.test.ts` | 手机号校验、等级判断、积分计算     |
+| `order-service.test.ts`    | 金额舍入、会员价选择、积分抵扣计算 |
+| `product-service.test.ts`  | 图片URL校验、DTO转换               |
+| `auth-service.test.ts`     | PIN格式校验、token编解码           |
+| `rbac-service.test.ts`     | 角色层级判断、API路由权限控制      |
+
+测试文件位于 `tests/unit/`，使用 vitest 框架。
+
 ### 会员全链路测试
 
 ```bash
