@@ -15,7 +15,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "test": "vitest run --fileParallelism false",
+    "test:setup": "cross-env DATABASE_URL=file:./test.db prisma db push --accept-data-loss",
+    "test": "npm run test:setup && vitest run --fileParallelism false",
     "test:watch": "vitest --fileParallelism false"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "@nuxtjs/tailwindcss": "^6.13.2",
     "@tailwindcss/typography": "^0.5.19",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.5.1",
