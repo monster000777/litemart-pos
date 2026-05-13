@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { onUnmounted } from 'vue'
-import { ChevronDown, ChevronUp, Download, Search, Undo2 } from 'lucide-vue-next'
+import { ChevronDown, ChevronUp, Download, Search, Trash2, Undo2 } from 'lucide-vue-next'
 import Skeleton from '~/components/ui/skeleton/Skeleton.vue'
 import type { OrderListResponse } from '~/types/order'
+import { roleHasAtLeast, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 const refundingId = ref('')
+const deletingId = ref('')
+const authRole = useState<UserRole | null>('auth:role')
+const canManage = computed(() => roleHasAtLeast(authRole.value, USER_ROLES.MANAGER))
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const { formatPrice, formatDate } = useFormat()
@@ -111,6 +115,24 @@ const refundOrder = async (orderId: string, orderNo: string) => {
     toast({ title: getApiErrorMessage(err, '退款失败'), variant: 'error', duration: 3000 })
   } finally {
     refundingId.value = ''
+  }
+}
+
+const deleteOrder = async (orderId: string, orderNo: string) => {
+  if (deletingId.value) return
+  const ok = window.confirm(`确认删除订单「${orderNo}」？此操作不可恢复。`)
+  if (!ok) return
+
+  deletingId.value = orderId
+  try {
+    await $fetch(`/api/orders/${orderId}`, { method: 'DELETE' })
+    toast({ title: `订单 ${orderNo} 已删除`, variant: 'success', duration: 3000 })
+    clearNuxtData()
+    await refreshNuxtData('orders')
+  } catch (err) {
+    toast({ title: getApiErrorMessage(err, '删除失败'), variant: 'error', duration: 3000 })
+  } finally {
+    deletingId.value = ''
   }
 }
 
@@ -259,8 +281,18 @@ onUnmounted(() => {
 
           <div
             v-if="order.status === 'COMPLETED'"
-            class="mt-3 flex justify-end border-t border-slate-100 pt-3"
+            class="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3"
           >
+            <button
+              v-if="canManage"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+              :disabled="deletingId === order.id"
+              @click.stop="deleteOrder(order.id, order.orderNo)"
+            >
+              <Trash2 class="h-3.5 w-3.5" />
+              {{ deletingId === order.id ? '删除中...' : '删除订单' }}
+            </button>
             <button
               type="button"
               class="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"

@@ -42,6 +42,9 @@ export const canAccessApiRoute = (role: UserRole, pathname: string, method: stri
     if (pathname.endsWith('/refund')) {
       return roleHasAtLeast(role, USER_ROLES.MANAGER)
     }
+    if (method === 'DELETE') {
+      return roleHasAtLeast(role, USER_ROLES.MANAGER)
+    }
     return isReadMethod(method)
   }
 
