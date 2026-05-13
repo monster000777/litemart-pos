@@ -1,5 +1,6 @@
 import { H3Error } from 'h3'
 import { createSessionToken, hashPin, isValidPinFormat } from '~~/server/services/auth-service'
+import { verifyOtp } from '~~/server/services/otp-service'
 import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/auth-config-service'
 import {
   countAuthUsers,
@@ -16,6 +17,7 @@ type RegisterBody = {
   pin?: string
   confirmPin?: string
   inviteCode?: string
+  otpCode?: string
 }
 
 export default defineEventHandler(async (event) => {
@@ -31,6 +33,24 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Bad Request',
         message: '手机号格式错误（需为 11 位数字）'
+      })
+    }
+
+    // Verify OTP
+    const otpCode = body.otpCode?.trim() ?? ''
+    if (!otpCode || !/^\d{6}$/.test(otpCode)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '验证码格式错误'
+      })
+    }
+    const otpValid = verifyOtp(phone, otpCode)
+    if (!otpValid) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Bad Request',
+        message: '验证码错误或已过期'
       })
     }
 

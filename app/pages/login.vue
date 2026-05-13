@@ -227,7 +227,8 @@ const switchMode = (m: typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RE
 const sendOtp = async () => {
   errorMessage.value = ''
   helperMessage.value = ''
-  const phone = mode.value === MODE_REGISTER ? regPhone.value.trim() : resetPhone.value.trim()
+  const isRegister = mode.value === MODE_REGISTER
+  const phone = isRegister ? regPhone.value.trim() : resetPhone.value.trim()
   if (!phone || phone.length !== 11) {
     errorMessage.value = '请输入 11 位手机号'
     return
@@ -235,13 +236,11 @@ const sendOtp = async () => {
   if (otpCountdown.value > 0) return
 
   try {
-    const res = await $fetch<{ success: boolean; message: string; mockCode?: string }>(
-      '/api/auth/send-otp',
-      {
-        method: 'POST',
-        body: { phone }
-      }
-    )
+    const endpoint = isRegister ? '/api/auth/send-change-phone-otp' : '/api/auth/send-otp'
+    const res = await $fetch<{ success: boolean; message: string; mockCode?: string }>(endpoint, {
+      method: 'POST',
+      body: { phone }
+    })
 
     // Start countdown
     otpCountdown.value = 60

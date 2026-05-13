@@ -48,8 +48,8 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      message: '验证码发送成功',
-      mockCode: import.meta.dev ? code : undefined
+      message: '验证码已发送',
+      mockCode: code
     }
   } catch (error) {
     if (error instanceof H3Error) {
