@@ -68,7 +68,9 @@ app/
 │   ├── purchase-orders.vue  采购管理
 │   ├── users.vue         用户管理
 │   ├── logs.vue          操作日志
-│   ├── insights.vue      经营看板
+│   ├── insights.vue      AI 经营分析（周报）
+│   ├── dashboard.vue      实时经营大屏（30s 自动刷新）
+│   ├── settings.vue       个人信息 / PIN / 邀请码管理
 │   ├── ai.vue            AI 助手
 │   └── login.vue         登录页
 ├── stores/               Pinia 状态
@@ -119,6 +121,7 @@ shared/
 
 scripts/
 ├── test-membership.ts    会员全链路测试
+├── verify-seed.ts       种子数据完整性验证
 └── check-db-health.ps1   SQLite 健康检查脚本
 ```
 

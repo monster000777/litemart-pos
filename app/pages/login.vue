@@ -227,7 +227,7 @@ const switchMode = (m: typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RE
 const sendOtp = async () => {
   errorMessage.value = ''
   helperMessage.value = ''
-  const phone = mode === MODE_REGISTER ? regPhone.value.trim() : resetPhone.value.trim()
+  const phone = mode.value === MODE_REGISTER ? regPhone.value.trim() : resetPhone.value.trim()
   if (!phone || phone.length !== 11) {
     errorMessage.value = '请输入 11 位手机号'
     return
