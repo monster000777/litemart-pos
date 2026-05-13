@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { LoaderCircle, Pencil, Plus, Search, Trash2, Check, X, UserRound } from 'lucide-vue-next'
+import Sheet from '~/components/ui/sheet/Sheet.vue'
+import SheetContent from '~/components/ui/sheet/SheetContent.vue'
+import SheetDescription from '~/components/ui/sheet/SheetDescription.vue'
+import SheetFooter from '~/components/ui/sheet/SheetFooter.vue'
+import SheetHeader from '~/components/ui/sheet/SheetHeader.vue'
+import SheetTitle from '~/components/ui/sheet/SheetTitle.vue'
 import type { MemberDto, MemberListResponse } from '~/types/member'
 
 const search = ref('')
 const level = ref('')
 const submitting = ref(false)
 const deletingId = ref<string | null>(null)
+const sheetOpen = ref(false)
 const editingId = ref('')
 const formError = ref('')
 const { toast } = useToast()
@@ -42,24 +49,30 @@ const resetForm = () => {
   form.phone = ''
   form.name = ''
   form.level = 'NORMAL'
-  editingId.value = ''
   formError.value = ''
 }
 
-const startCreate = () => {
+const openCreate = () => {
+  deletingId.value = null
+  editingId.value = ''
   resetForm()
+  sheetOpen.value = true
 }
 
-const startEdit = (member: MemberDto) => {
+const openEdit = (member: MemberDto) => {
+  deletingId.value = null
   editingId.value = member.id
   form.phone = member.phone
   form.name = member.name ?? ''
   form.level = member.level
   formError.value = ''
+  sheetOpen.value = true
 }
 
-const cancelEdit = () => {
+const closeSheet = () => {
+  sheetOpen.value = false
   resetForm()
+  editingId.value = ''
 }
 
 const submitForm = async () => {
@@ -89,7 +102,7 @@ const submitForm = async () => {
     }
 
     await refresh()
-    resetForm()
+    closeSheet()
   } catch (err) {
     formError.value = getApiErrorMessage(err, '保存失败')
     toast({ title: formError.value, variant: 'error', duration: 2500 })
@@ -107,16 +120,15 @@ const cancelDelete = () => {
 }
 
 const removeMember = async (member: MemberDto) => {
+  const wasEditing = editingId.value === member.id
   try {
     await $fetch(`/api/customers/${member.id}`, { method: 'DELETE' })
     toast({ title: '会员已删除', variant: 'success', duration: 2500 })
     await refresh()
-    if (editingId.value === member.id) {
-      resetForm()
-    }
+    deletingId.value = null
+    if (wasEditing) closeSheet()
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '删除失败'), variant: 'error', duration: 2500 })
-  } finally {
     deletingId.value = null
   }
 }
@@ -136,177 +148,156 @@ const LEVEL_CONFIG = {
         <h1 class="header-title">会员管理</h1>
         <span class="header-count">{{ members.length }} 位会员</span>
       </div>
-      <button type="button" class="btn-new" @click="startCreate">
+      <button type="button" class="btn-new" @click="openCreate">
         <Plus class="icon" />
         新建会员
       </button>
     </header>
 
-    <div class="page-body">
-      <!-- 左侧会员列表 -->
-      <div class="panel panel-list">
-        <!-- 搜索筛选 -->
-        <div class="search-bar">
-          <div class="search-wrap">
-            <Search class="search-icon" />
-            <input
-              v-model="search"
-              type="text"
-              placeholder="搜索手机号或姓名"
-              class="search-input"
-            />
-          </div>
-          <select v-model="level" class="level-select">
-            <option value="">全部等级</option>
-            <option value="NORMAL">普通</option>
-            <option value="SILVER">白银</option>
-            <option value="GOLD">黄金</option>
-          </select>
-        </div>
+    <!-- 搜索筛选 -->
+    <div class="search-bar">
+      <div class="search-wrap">
+        <Search class="search-icon" />
+        <input v-model="search" type="text" placeholder="搜索手机号或姓名" class="search-input" />
+      </div>
+      <select v-model="level" class="level-select">
+        <option value="">全部等级</option>
+        <option value="NORMAL">普通</option>
+        <option value="SILVER">白银</option>
+        <option value="GOLD">黄金</option>
+      </select>
+    </div>
 
-        <!-- 错误提示 -->
-        <div v-if="errorMsg" class="error-banner">
-          {{ errorMsg }}
-        </div>
+    <!-- 会员列表 -->
+    <div class="member-panel">
+      <!-- 错误提示 -->
+      <div v-if="errorMsg" class="error-banner">{{ errorMsg }}</div>
 
-        <!-- 加载态 -->
-        <div v-if="pending" class="state-empty">
-          <LoaderCircle class="spin" />
-          <span>加载中...</span>
-        </div>
+      <!-- 加载态 -->
+      <div v-if="pending" class="state-empty">
+        <LoaderCircle class="spin" />
+        <span>加载中...</span>
+      </div>
 
-        <!-- 会员列表 -->
-        <div v-else-if="members.length" class="member-list-wrap">
-          <div class="member-list">
-            <div
-              v-for="member in members"
-              :key="member.id"
-              class="member-card"
-              :class="{
-                'is-editing': editingId === member.id,
-                'is-deleting': deletingId === member.id
-              }"
-            >
-              <!-- 删除确认态 -->
-              <template v-if="deletingId === member.id">
-                <div class="delete-confirm">
-                  <p class="delete-text">删除 {{ member.phone }}？</p>
-                  <div class="delete-actions">
-                    <button type="button" class="btn-confirm-yes" @click="removeMember(member)">
-                      <Check class="icon-sm" /> 确认
-                    </button>
-                    <button type="button" class="btn-confirm-no" @click="cancelDelete">
-                      <X class="icon-sm" /> 取消
-                    </button>
-                  </div>
-                </div>
-              </template>
-
-              <!-- 正常态 -->
-              <template v-else>
-                <div class="member-info">
-                  <div class="member-avatar">
-                    <UserRound class="avatar-icon" />
-                  </div>
-                  <div class="member-detail">
-                    <div class="member-top">
-                      <span class="member-name">{{ member.name || '未命名' }}</span>
-                      <span
-                        class="level-badge"
-                        :style="{
-                          color: LEVEL_CONFIG[member.level].color,
-                          background: LEVEL_CONFIG[member.level].bg
-                        }"
-                      >
-                        {{ LEVEL_CONFIG[member.level].label }}
-                      </span>
-                    </div>
-                    <p class="member-phone">{{ member.phone }}</p>
-                    <p class="member-meta">
-                      {{ member.points }} 积分 · {{ formatDate(member.createdAt) }}
-                    </p>
-                  </div>
-                </div>
-
-                <div class="member-actions">
-                  <button
-                    type="button"
-                    class="btn-icon"
-                    :class="{ 'is-active': editingId === member.id }"
-                    @click="startEdit(member)"
-                  >
-                    <Pencil class="icon" />
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-icon btn-icon-danger"
-                    @click="confirmDelete(member)"
-                  >
-                    <Trash2 class="icon" />
-                  </button>
-                </div>
-              </template>
+      <!-- 会员卡片 -->
+      <div v-else-if="members.length" class="member-list">
+        <div
+          v-for="member in members"
+          :key="member.id"
+          class="member-card"
+          :class="{ 'is-deleting': deletingId === member.id }"
+        >
+          <!-- 删除确认态 -->
+          <template v-if="deletingId === member.id">
+            <div class="delete-confirm">
+              <p class="delete-text">删除用户 {{ member.phone }}</p>
+              <div class="delete-actions">
+                <button type="button" class="btn-confirm-yes" @click="removeMember(member)">
+                  <Check class="icon-sm" /> 确认
+                </button>
+                <button type="button" class="btn-confirm-no" @click="cancelDelete">
+                  <X class="icon-sm" /> 取消
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+          </template>
 
-        <!-- 空态 -->
-        <div v-else class="state-empty">
-          <span>暂无会员</span>
+          <!-- 正常态 -->
+          <template v-else>
+            <div class="member-info">
+              <div class="member-avatar">
+                <UserRound class="avatar-icon" />
+              </div>
+              <div class="member-detail">
+                <div class="member-top">
+                  <span class="member-name">{{ member.name || '未命名' }}</span>
+                  <span
+                    class="level-badge"
+                    :style="{
+                      color: LEVEL_CONFIG[member.level].color,
+                      background: LEVEL_CONFIG[member.level].bg
+                    }"
+                  >
+                    {{ LEVEL_CONFIG[member.level].label }}
+                  </span>
+                </div>
+                <p class="member-phone">{{ member.phone }}</p>
+                <p class="member-meta">
+                  {{ member.points }} 积分 · {{ formatDate(member.createdAt) }}
+                </p>
+              </div>
+            </div>
+
+            <div class="member-actions">
+              <button type="button" class="btn-icon" @click="openEdit(member)">
+                <Pencil class="icon" />
+              </button>
+              <button type="button" class="btn-icon btn-icon-danger" @click="confirmDelete(member)">
+                <Trash2 class="icon" />
+              </button>
+            </div>
+          </template>
         </div>
       </div>
 
-      <!-- 右侧表单 -->
-      <div class="panel panel-form" :class="{ 'has-editing': isEditMode }">
-        <div class="form-header">
-          <h2 class="form-title">
-            {{ isEditMode ? '编辑会员' : '新建会员' }}
-          </h2>
-          <p v-if="isEditMode" class="form-sub">编辑中：{{ editingMember?.phone }}</p>
-        </div>
+      <!-- 空态 -->
+      <div v-else class="state-empty">
+        <span>暂无会员</span>
+      </div>
+    </div>
 
-        <div class="form-body">
+    <!-- Sheet 弹窗 -->
+    <Sheet v-model:open="sheetOpen">
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{{ isEditMode ? '编辑会员' : '新建会员' }}</SheetTitle>
+          <SheetDescription v-if="isEditMode">
+            编辑中：{{ editingMember?.phone }}
+          </SheetDescription>
+          <SheetDescription v-else> 创建后即可使用手机号登录收银台 </SheetDescription>
+        </SheetHeader>
+
+        <form class="mt-8 space-y-5" @submit.prevent="submitForm">
           <div class="form-field">
+            <label class="form-label">手机号</label>
             <input
               v-model="form.phone"
               type="text"
-              placeholder="手机号"
+              placeholder="11 位手机号"
               :disabled="isEditMode"
               class="form-input"
               :class="{ 'is-disabled': isEditMode }"
             />
           </div>
+
           <div class="form-field">
-            <input v-model="form.name" type="text" placeholder="姓名（可选）" class="form-input" />
+            <label class="form-label">姓名</label>
+            <input v-model="form.name" type="text" placeholder="可选" class="form-input" />
           </div>
+
           <div class="form-field">
+            <label class="form-label">会员等级</label>
             <select v-model="form.level" class="form-input form-select">
               <option value="NORMAL">普通会员</option>
               <option value="SILVER">白银会员</option>
               <option value="GOLD">黄金会员</option>
             </select>
           </div>
-        </div>
 
-        <p v-if="formError" class="form-error">{{ formError }}</p>
+          <p v-if="formError" class="form-error">{{ formError }}</p>
 
-        <div class="form-footer">
-          <button
-            v-if="isEditMode"
-            type="button"
-            class="btn-cancel"
-            :disabled="submitting"
-            @click="cancelEdit"
-          >
-            取消
-          </button>
-          <button type="button" class="btn-submit" :disabled="submitting" @click="submitForm">
-            <LoaderCircle v-if="submitting" class="spin icon" />
-            <span v-else>{{ isEditMode ? '保存修改' : '创建会员' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+          <SheetFooter>
+            <button type="button" class="btn-cancel" :disabled="submitting" @click="closeSheet">
+              取消
+            </button>
+            <button type="submit" class="btn-submit" :disabled="submitting">
+              <LoaderCircle v-if="submitting" class="spin icon" />
+              <span v-else>{{ isEditMode ? '保存修改' : '创建会员' }}</span>
+            </button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   </div>
 </template>
 
@@ -315,8 +306,9 @@ const LEVEL_CONFIG = {
 .page-root {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  height: 100%;
+  gap: 1.25rem;
+  min-height: 0;
+  flex: 1;
 }
 
 /* ===== 顶部标题栏 ===== */
@@ -324,7 +316,6 @@ const LEVEL_CONFIG = {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0.25rem;
 }
 
 .header-left {
@@ -365,58 +356,10 @@ const LEVEL_CONFIG = {
   background: #292524;
 }
 
-/* ===== 页面主体 ===== */
-.page-body {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 1.25rem;
-  align-items: stretch;
-  height: 100%;
-  min-height: 0;
-}
-
-@media (max-width: 900px) {
-  .page-body {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ===== 面板 ===== */
-.panel {
-  background: #fafaf9;
-  border: 1px solid rgba(28, 25, 23, 0.07);
-  border-radius: 1rem;
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-/* 会员列表区：有最大高度，超出可滚动 */
-.member-list-wrap {
-  flex: 1;
-  max-height: calc(100vh - 13rem);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 transparent;
-}
-
-.member-list-wrap::-webkit-scrollbar {
-  width: 4px;
-}
-.member-list-wrap::-webkit-scrollbar-track {
-  background: transparent;
-}
-.member-list-wrap::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
-  border-radius: 999px;
-}
-
 /* ===== 搜索栏 ===== */
 .search-bar {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
 .search-wrap {
@@ -474,6 +417,30 @@ const LEVEL_CONFIG = {
   border-color: rgba(28, 25, 23, 0.2);
 }
 
+/* ===== 会员列表面板 ===== */
+.member-panel {
+  background: #fafaf9;
+  border: 1px solid rgba(28, 25, 23, 0.07);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d6d3d1 transparent;
+}
+
+.member-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.member-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.member-panel::-webkit-scrollbar-thumb {
+  background: #d6d3d1;
+  border-radius: 999px;
+}
+
 /* ===== 错误提示 ===== */
 .error-banner {
   padding: 0.625rem 0.875rem;
@@ -485,7 +452,7 @@ const LEVEL_CONFIG = {
   margin-bottom: 0.875rem;
 }
 
-/* ===== 会员列表 ===== */
+/* ===== 会员卡片 ===== */
 .member-list {
   display: flex;
   flex-direction: column;
@@ -497,6 +464,9 @@ const LEVEL_CONFIG = {
   border: 1px solid rgba(28, 25, 23, 0.07);
   border-radius: 0.625rem;
   padding: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -507,22 +477,18 @@ const LEVEL_CONFIG = {
   box-shadow: 0 2px 8px rgba(28, 25, 23, 0.05);
 }
 
-.member-card.is-editing {
-  border-color: rgba(28, 25, 23, 0.2);
-  background: #fafaf9;
-  box-shadow: 0 2px 12px rgba(28, 25, 23, 0.08);
-}
-
 .member-card.is-deleting {
   border-color: #fecdd3;
   background: #fff1f2;
 }
 
-/* 会员信息行 */
+/* 会员信息 */
 .member-info {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .member-avatar {
@@ -584,7 +550,6 @@ const LEVEL_CONFIG = {
 .member-actions {
   display: flex;
   gap: 0.375rem;
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -609,11 +574,6 @@ const LEVEL_CONFIG = {
   color: #1c1917;
   background: #fafaf9;
 }
-.btn-icon.is-active {
-  border-color: #1c1917;
-  background: #1c1917;
-  color: white;
-}
 .btn-icon-danger:hover {
   border-color: #fecdd3;
   color: #be123c;
@@ -625,6 +585,7 @@ const LEVEL_CONFIG = {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   gap: 0.75rem;
 }
 
@@ -671,56 +632,17 @@ const LEVEL_CONFIG = {
   background: #f5f4f2;
 }
 
-/* 空态 / 加载态 */
-.state-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 2.5rem 0;
-  font-size: 0.875rem;
-  color: #a8a29e;
-}
-
-/* ===== 右侧表单 ===== */
-.panel-form {
-  position: sticky;
-  top: 1.5rem;
-  transition: box-shadow 0.2s;
-}
-
-.panel-form.has-editing {
-  border-color: rgba(28, 25, 23, 0.15);
-  box-shadow: 0 4px 20px rgba(28, 25, 23, 0.08);
-}
-
-.form-header {
-  margin-bottom: 1.25rem;
-}
-
-.form-title {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  color: #1c1917;
-  margin: 0 0 0.25rem;
-}
-
-.form-sub {
-  font-size: 0.8125rem;
-  color: #a8a29e;
-  margin: 0;
-}
-
-.form-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
-}
-
+/* ===== Sheet 表单 ===== */
 .form-field {
   display: flex;
   flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #57534e;
 }
 
 .form-input {
@@ -763,18 +685,12 @@ const LEVEL_CONFIG = {
 .form-error {
   font-size: 0.8125rem;
   color: #be123c;
-  margin: 0 0 0.75rem;
-}
-
-.form-footer {
-  display: flex;
-  gap: 0.5rem;
+  margin: 0;
 }
 
 .btn-cancel {
-  flex-shrink: 0;
+  flex: 1;
   height: 2.5rem;
-  padding: 0 1rem;
   border: 1px solid rgba(28, 25, 23, 0.12);
   border-radius: 0.375rem;
   background: white;
@@ -785,7 +701,7 @@ const LEVEL_CONFIG = {
     border-color 0.15s,
     background 0.15s;
 }
-.btn-cancel:hover:not(:disabled) {
+.btn-cancel:hover {
   background: #f5f4f2;
   border-color: rgba(28, 25, 23, 0.2);
 }
@@ -814,7 +730,17 @@ const LEVEL_CONFIG = {
   cursor: not-allowed;
 }
 
-/* ===== 图标 ===== */
+/* ===== 通用 ===== */
+.state-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.5rem 0;
+  font-size: 0.875rem;
+  color: #a8a29e;
+}
+
 .icon {
   width: 0.875rem;
   height: 0.875rem;

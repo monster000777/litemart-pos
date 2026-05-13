@@ -33,6 +33,7 @@ const resetPhone = ref('')
 const resetOtpCode = ref('')
 const resetNewPin = ref('')
 const resetConfirmPin = ref('')
+const regOtpCode = ref('')
 
 const otpCountdown = ref(0)
 let otpTimer: ReturnType<typeof setInterval> | null = null
@@ -105,6 +106,10 @@ const register = async () => {
     errorMessage.value = '请输入 11 位手机号'
     return
   }
+  if (!regOtpCode.value.trim() || regOtpCode.value.trim().length !== 6) {
+    errorMessage.value = '请输入 6 位验证码'
+    return
+  }
   if (regPin.value.length !== 6) {
     errorMessage.value = '请输入 6 位 PIN'
     return
@@ -120,6 +125,7 @@ const register = async () => {
       method: 'POST',
       body: {
         phone: regPhone.value.trim(),
+        otpCode: regOtpCode.value.trim(),
         pin: regPin.value,
         confirmPin: regConfirmPin.value,
         inviteCode: regInviteCode.value.trim()
@@ -194,16 +200,35 @@ const switchMode = (m: typeof MODE_LOGIN | typeof MODE_REGISTER | typeof MODE_RE
   mode.value = m
   errorMessage.value = ''
   helperMessage.value = ''
-  if (m !== MODE_RESET && otpTimer) {
+  if (m === MODE_LOGIN && otpTimer) {
     clearInterval(otpTimer)
     otpCountdown.value = 0
+  }
+  if (m === MODE_REGISTER) {
+    regOtpCode.value = ''
+  }
+  if (m === MODE_RESET) {
+    resetOtpCode.value = ''
+  }
+  if (m === MODE_LOGIN) {
+    regPhone.value = ''
+    regPin.value = ''
+    regConfirmPin.value = ''
+    regInviteCode.value = ''
+  }
+  if (m !== MODE_RESET) {
+    resetPhone.value = ''
+    resetOtpCode.value = ''
+    resetNewPin.value = ''
+    resetConfirmPin.value = ''
   }
 }
 
 const sendOtp = async () => {
   errorMessage.value = ''
   helperMessage.value = ''
-  if (!resetPhone.value.trim() || resetPhone.value.trim().length !== 11) {
+  const phone = mode === MODE_REGISTER ? regPhone.value.trim() : resetPhone.value.trim()
+  if (!phone || phone.length !== 11) {
     errorMessage.value = '请输入 11 位手机号'
     return
   }
@@ -214,7 +239,7 @@ const sendOtp = async () => {
       '/api/auth/send-otp',
       {
         method: 'POST',
-        body: { phone: resetPhone.value.trim() }
+        body: { phone }
       }
     )
 
@@ -386,6 +411,24 @@ onUnmounted(() => {
                 :disabled="isDisabled"
               />
             </div>
+            <div class="otp-row">
+              <input
+                v-model="regOtpCode"
+                type="text"
+                placeholder="短信验证码"
+                maxlength="6"
+                class="field-input"
+                :disabled="isDisabled"
+              />
+              <button
+                type="button"
+                class="otp-btn"
+                :disabled="isDisabled || otpCountdown > 0 || !regPhone || regPhone.length !== 11"
+                @click="sendOtp"
+              >
+                {{ otpCountdown > 0 ? `${otpCountdown}s` : '获取验证码' }}
+              </button>
+            </div>
             <div class="field">
               <div class="pin-wrap">
                 <input
@@ -551,7 +594,7 @@ onUnmounted(() => {
 /* ===== 左侧氛围区 ===== */
 .scene-panel {
   position: relative;
-  flex: 0 0 58%;
+  flex: 0 0 67%;
   overflow: hidden;
 }
 
@@ -598,7 +641,7 @@ onUnmounted(() => {
 
 .scene-brand-name {
   font-family: var(--font-serif);
-  font-size: 1.125rem;
+  font-size: 1.575rem;
   font-weight: 600;
   color: white;
   letter-spacing: 0.1em;
@@ -668,7 +711,7 @@ onUnmounted(() => {
 
 .heading-sub {
   font-size: 0.8125rem;
-  color: #a8a29e;
+  color: #78716c;
   margin: 0;
 }
 
@@ -734,7 +777,7 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 .field-input::placeholder {
-  color: #d6d3d1;
+  color: #a8a29e;
 }
 
 /* PIN */
