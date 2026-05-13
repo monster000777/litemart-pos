@@ -73,7 +73,7 @@ const completeAuthFlow = async () => {
 const login = async () => {
   errorMessage.value = ''
   if (!loginUid.value.trim()) {
-    errorMessage.value = '请输入员工 UID'
+    errorMessage.value = '请输入员工 UID 或手机号'
     return
   }
   if (loginPin.value.length !== 6) {
@@ -313,7 +313,7 @@ onUnmounted(() => {
               <input
                 v-model="loginUid"
                 type="text"
-                placeholder="员工 UID"
+                placeholder="员工 UID 或 手机号"
                 maxlength="20"
                 autocomplete="username"
                 class="field-input"

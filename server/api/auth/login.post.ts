@@ -9,7 +9,8 @@ import { createAuthConfigIfMissing, getAuthConfig } from '~~/server/services/aut
 import {
   createAuthUser,
   ensureLegacyAdminUserMigrated,
-  findAuthUserByUid
+  findAuthUserByUid,
+  findAuthUserByPhone
 } from '~~/server/services/auth-user-service'
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { getPinRateLimiter } from '~~/server/utils/rate-limiter'
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '请输入员工 UID'
+        message: '请输入员工 UID 或 手机号'
       })
     }
 
@@ -99,7 +100,11 @@ export default defineEventHandler(async (event) => {
 
     await ensureLegacyAdminUserMigrated()
 
-    const user = await findAuthUserByUid(uid)
+    let user = await findAuthUserByUid(uid)
+    if (!user) {
+      user = await findAuthUserByPhone(uid)
+    }
+
     if (!user || user.status !== 'ACTIVE') {
       await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `账号不存在或已停用：${uid}`, clientIp)
       const newLockSeconds = limiter.recordFailure(clientIp)
