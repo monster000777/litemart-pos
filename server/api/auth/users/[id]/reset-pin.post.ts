@@ -1,10 +1,6 @@
 import { H3Error } from 'h3'
 import { hashPin, isValidPinFormat } from '~~/server/services/auth-service'
-import {
-  findAuthUserById,
-  isPinInUse,
-  updateAuthUserPin
-} from '~~/server/services/auth-user-service'
+import { findAuthUserById, updateAuthUserPin } from '~~/server/services/auth-user-service'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
 import { USER_ROLES } from '~~/shared/constants/rbac'
@@ -41,7 +37,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 格式错误'
+        message: '密码格式错误'
       })
     }
 
@@ -49,7 +45,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '两次输入的 PIN 不一致'
+        message: '两次输入的密码不一致'
       })
     }
 
@@ -62,19 +58,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    if (await isPinInUse(newPin, { excludeUserId: targetUser.id })) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Conflict',
-        message: 'PIN 已被其他账号使用'
-      })
-    }
-
     const pinHash = await hashPin(newPin)
     await updateAuthUserPin(targetUser.id, pinHash)
     await writeAuditLog(
       AUDIT_ACTIONS.AUTH_USER_RESET_PIN,
-      `重置账号 PIN：${targetUser.uid}`,
+      `重置账号密码：${targetUser.uid}`,
       getClientIp(event)
     )
 
@@ -89,7 +77,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
-      message: '重置账号 PIN 失败，请稍后重试'
+      message: '重置账号密码失败，请稍后重试'
     })
   }
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
+import { AUTH_PASSWORD_MAX_LENGTH, AUTH_PASSWORD_MIN_LENGTH } from '~~/shared/constants/auth'
 import type { UserRole } from '~~/shared/constants/rbac'
 
 definePageMeta({ layout: false })
@@ -45,6 +46,8 @@ const authRole = useState<UserRole | null>('auth:role', () => null)
 
 const isLocked = computed(() => lockSeconds.value > 0)
 const isDisabled = computed(() => submitting.value || checkingStatus.value || isLocked.value)
+const isValidPasswordLength = (value: string) =>
+  value.length >= AUTH_PASSWORD_MIN_LENGTH && value.length <= AUTH_PASSWORD_MAX_LENGTH
 
 const startLockCountdown = (s: number) => {
   if (lockTimer.value) clearInterval(lockTimer.value)
@@ -77,8 +80,8 @@ const login = async () => {
     errorMessage.value = '请输入员工 UID 或手机号'
     return
   }
-  if (loginPin.value.length !== 6) {
-    errorMessage.value = '请输入 6 位 PIN'
+  if (!isValidPasswordLength(loginPin.value)) {
+    errorMessage.value = `请输入 ${AUTH_PASSWORD_MIN_LENGTH}-${AUTH_PASSWORD_MAX_LENGTH} 位密码`
     return
   }
   if (submitting.value || isLocked.value) return
@@ -110,12 +113,12 @@ const register = async () => {
     errorMessage.value = '请输入 6 位验证码'
     return
   }
-  if (regPin.value.length !== 6) {
-    errorMessage.value = '请输入 6 位 PIN'
+  if (!isValidPasswordLength(regPin.value)) {
+    errorMessage.value = `请输入 ${AUTH_PASSWORD_MIN_LENGTH}-${AUTH_PASSWORD_MAX_LENGTH} 位密码`
     return
   }
   if (regPin.value !== regConfirmPin.value) {
-    errorMessage.value = '两次 PIN 不一致'
+    errorMessage.value = '两次密码输入不一致'
     return
   }
   if (submitting.value) return
@@ -131,7 +134,7 @@ const register = async () => {
         inviteCode: regInviteCode.value.trim()
       }
     })
-    window.alert(`注册成功！您的员工 UID 为：${result.uid}\n请妥善保管此 UID，您将使用它进行登录。`)
+    window.alert(`注册成功！您的员工 UID 为：${result.uid}`)
     authRole.value = result.role
     await completeAuthFlow()
   } catch (error) {
@@ -148,14 +151,14 @@ const resetPin = async () => {
   if (
     !resetPhone.value.trim() ||
     !resetOtpCode.value.trim() ||
-    resetNewPin.value.length !== 6 ||
-    resetConfirmPin.value.length !== 6
+    !isValidPasswordLength(resetNewPin.value) ||
+    !isValidPasswordLength(resetConfirmPin.value)
   ) {
     errorMessage.value = '请完整填写所有字段'
     return
   }
   if (resetNewPin.value !== resetConfirmPin.value) {
-    errorMessage.value = '新 PIN 两次输入不一致'
+    errorMessage.value = '两次新密码输入不一致'
     return
   }
   if (submitting.value) return
@@ -175,9 +178,9 @@ const resetPin = async () => {
     resetOtpCode.value = ''
     resetNewPin.value = ''
     resetConfirmPin.value = ''
-    helperMessage.value = 'PIN 重置成功，请重新登录'
+    helperMessage.value = '密码重置成功，请重新登录'
   } catch (error) {
-    handleApiError(error, 'PIN 重置失败，请稍后重试')
+    handleApiError(error, '密码重置失败，请稍后重试')
   } finally {
     submitting.value = false
   }
@@ -309,18 +312,18 @@ onUnmounted(() => {
                   ? isInitialized
                     ? '员工注册'
                     : '初始化账号'
-                  : '重置 PIN'
+                  : '重置密码'
             }}
           </h2>
           <p class="heading-sub">
             {{
               mode === MODE_LOGIN
-                ? '输入账号与 PIN 开始工作'
+                ? '输入账号与密码开始工作'
                 : mode === MODE_REGISTER
                   ? isInitialized
                     ? '请输入邀请码完成注册'
                     : '首次使用，请设置管理员账号'
-                  : '验证身份后设置新 PIN'
+                  : '验证身份后设置新密码'
             }}
           </p>
         </div>
@@ -350,9 +353,8 @@ onUnmounted(() => {
                 <input
                   v-model="loginPin"
                   :type="showPin ? 'text' : 'password'"
-                  placeholder="PIN 码"
-                  maxlength="6"
-                  inputmode="numeric"
+                  placeholder="密码"
+                  :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                   autocomplete="current-password"
                   class="field-input pin-input"
                   :disabled="isDisabled"
@@ -382,7 +384,7 @@ onUnmounted(() => {
             <button type="button" class="link-btn" @click="switchMode(MODE_REGISTER)">
               员工注册
             </button>
-            <button type="button" class="link-btn" @click="switchMode(MODE_RESET)">忘记 PIN</button>
+            <button type="button" class="link-btn" @click="switchMode(MODE_RESET)">忘记密码</button>
           </div>
         </template>
 
@@ -433,9 +435,8 @@ onUnmounted(() => {
                 <input
                   v-model="regPin"
                   :type="showPin ? 'text' : 'password'"
-                  placeholder="设置 PIN 码"
-                  maxlength="6"
-                  inputmode="numeric"
+                  placeholder="设置密码"
+                  :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                   class="field-input pin-input"
                   :disabled="isDisabled"
                 />
@@ -455,9 +456,8 @@ onUnmounted(() => {
                 <input
                   v-model="regConfirmPin"
                   :type="showConfirmPin ? 'text' : 'password'"
-                  placeholder="确认 PIN 码"
-                  maxlength="6"
-                  inputmode="numeric"
+                  placeholder="确认密码"
+                  :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                   class="field-input pin-input"
                   :disabled="isDisabled"
                   @keydown.enter="register"
@@ -523,9 +523,8 @@ onUnmounted(() => {
                 <input
                   v-model="resetNewPin"
                   :type="showPin ? 'text' : 'password'"
-                  placeholder="新 PIN"
-                  maxlength="6"
-                  inputmode="numeric"
+                  placeholder="新密码"
+                  :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                   class="field-input pin-input"
                   :disabled="isDisabled"
                 />
@@ -545,9 +544,8 @@ onUnmounted(() => {
                 <input
                   v-model="resetConfirmPin"
                   :type="showConfirmPin ? 'text' : 'password'"
-                  placeholder="确认新 PIN"
-                  maxlength="6"
-                  inputmode="numeric"
+                  placeholder="确认新密码"
+                  :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                   class="field-input pin-input"
                   :disabled="isDisabled"
                   @keydown.enter="resetPin"
@@ -779,7 +777,7 @@ onUnmounted(() => {
   color: #a8a29e;
 }
 
-/* PIN */
+/* Password */
 .pin-wrap {
   position: relative;
 }

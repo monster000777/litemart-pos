@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 码格式错误'
+        message: '密码格式错误'
       })
     }
 
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: 'PIN 码错误'
+        message: '密码错误'
       })
     }
 

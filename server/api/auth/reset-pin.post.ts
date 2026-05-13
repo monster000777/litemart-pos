@@ -3,7 +3,6 @@ import { hashPin, isValidPinFormat, verifyPin } from '~~/server/services/auth-se
 import {
   findAuthUserByPhone,
   findAuthUserByUid,
-  isPinInUse,
   updateAuthUserPin
 } from '~~/server/services/auth-user-service'
 import { verifyOtp } from '~~/server/services/otp-service'
@@ -50,7 +49,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '旧 PIN 格式错误'
+        message: '旧密码格式错误'
       })
     }
 
@@ -58,7 +57,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '新 PIN 格式错误'
+        message: '新密码格式错误'
       })
     }
 
@@ -66,7 +65,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '两次输入的新 PIN 不一致'
+        message: '两次输入的新密码不一致'
       })
     }
 
@@ -74,7 +73,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '新 PIN 不能与旧 PIN 相同'
+        message: '新密码不能与旧密码相同'
       })
     }
 
@@ -111,16 +110,16 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // For UID reset, check if logged in user is resetting someone else's PIN
+    // For UID reset, check if logged in user is resetting someone else's password
     if (uid && userId && user.id !== userId) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Forbidden',
-        message: '只能修改自己的 PIN'
+        message: '只能修改自己的密码'
       })
     }
 
-    // If using UID to reset (e.g. from settings page), verify old PIN
+    // If using UID to reset (e.g. from settings page), verify old password
     if (uid) {
       const isOldPinValid = await verifyPin(oldPin, user.pinHash)
       if (!isOldPinValid) {
@@ -129,14 +128,14 @@ export default defineEventHandler(async (event) => {
           throw createError({
             statusCode: 429,
             statusMessage: 'Too Many Requests',
-            message: `旧 PIN 错误，连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
+            message: `旧密码错误，连续输错 5 次，请 ${newLockSeconds} 秒后重试`,
             data: { lockSeconds: newLockSeconds }
           })
         }
         throw createError({
           statusCode: 401,
           statusMessage: 'Unauthorized',
-          message: '旧 PIN 错误'
+          message: '旧密码错误'
         })
       }
     } else if (phone) {
@@ -160,28 +159,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const isNewPinInUse = await isPinInUse(newPin, { excludeUserId: user.id })
-    if (isNewPinInUse) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Conflict',
-        message: '该 PIN 已被其他账号使用，请使用更复杂的 PIN'
-      })
-    }
-
     const hashedNewPin = await hashPin(newPin)
     await updateAuthUserPin(user.id, hashedNewPin)
     limiter.reset(clientIp)
 
     await writeAuditLog(
       AUDIT_ACTIONS.PIN_RESET,
-      `重置了 ${user.uid} (${user.phone}) 的 PIN`,
+      `重置了 ${user.uid} (${user.phone}) 的密码`,
       clientIp
     )
 
     return {
       success: true,
-      message: 'PIN 重置成功'
+      message: '密码重置成功'
     }
   } catch (error) {
     if (error instanceof H3Error) {
@@ -190,7 +180,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 500,
       statusMessage: 'Internal Server Error',
-      message: 'PIN 重置失败，请稍后重试'
+      message: '密码重置失败，请稍后重试'
     })
   }
 })

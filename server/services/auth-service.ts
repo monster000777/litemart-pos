@@ -1,6 +1,10 @@
 import { createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
-import { AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
+import {
+  AUTH_MAX_AGE_SECONDS,
+  AUTH_PASSWORD_MAX_LENGTH,
+  AUTH_PASSWORD_MIN_LENGTH
+} from '~~/shared/constants/auth'
 import type { UserRole } from '~~/shared/constants/rbac'
 
 const scrypt = promisify(scryptCallback)
@@ -94,4 +98,5 @@ export const verifySessionToken = (token: string | undefined, secret: string) =>
   }
 }
 
-export const isValidPinFormat = (pin: string) => /^\d{6}$/.test(pin)
+export const isValidPinFormat = (pin: string) =>
+  pin.length >= AUTH_PASSWORD_MIN_LENGTH && pin.length <= AUTH_PASSWORD_MAX_LENGTH

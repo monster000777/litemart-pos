@@ -1,6 +1,5 @@
 import { prisma } from '~~/server/lib/prisma'
 import { getAuthConfig } from '~~/server/services/auth-config-service'
-import { verifyPin } from '~~/server/services/auth-service'
 import { USER_ROLES, normalizeUserRole, type UserRole } from '~~/shared/constants/rbac'
 
 type AuthUserRow = {
@@ -197,38 +196,4 @@ export const findAuthUserByPhone = async (phone: string) => {
 
   const row = rows[0]
   return row ? toAuthUserRecord(row) : null
-}
-
-export const findAuthUserByPin = async (pin: string) => {
-  await ensureLegacyAdminUserMigrated()
-
-  const users = await listAuthUsers()
-  for (const user of users) {
-    if (user.status !== AUTH_USER_STATUS.ACTIVE) {
-      continue
-    }
-
-    if (await verifyPin(pin, user.pinHash)) {
-      return user
-    }
-  }
-
-  return null
-}
-
-export const isPinInUse = async (pin: string, options?: { excludeUserId?: string }) => {
-  await ensureLegacyAdminUserMigrated()
-
-  const users = await listAuthUsers()
-  for (const user of users) {
-    if (options?.excludeUserId && user.id === options.excludeUserId) {
-      continue
-    }
-
-    if (await verifyPin(pin, user.pinHash)) {
-      return true
-    }
-  }
-
-  return false
 }

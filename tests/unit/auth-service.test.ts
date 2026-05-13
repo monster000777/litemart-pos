@@ -7,6 +7,7 @@ import {
   verifySessionToken,
   isValidPinFormat
 } from '../../server/services/auth-service'
+import { AUTH_PASSWORD_MAX_LENGTH, AUTH_PASSWORD_MIN_LENGTH } from '../../shared/constants/auth'
 
 const encode = (value: string) => Buffer.from(value, 'utf8').toString('base64url')
 const decode = (value: string) => Buffer.from(value, 'base64url').toString('utf8')
@@ -19,22 +20,19 @@ const createSessionPayload = (userId: string) => ({
 
 describe('auth-service', () => {
   describe('isValidPinFormat', () => {
-    it('should accept valid 6-digit PINs', () => {
+    it('should accept passwords with valid length', () => {
       expect(isValidPinFormat('123456')).toBe(true)
-      expect(isValidPinFormat('000000')).toBe(true)
-      expect(isValidPinFormat('999999')).toBe(true)
+      expect(isValidPinFormat('abc123')).toBe(true)
+      expect(isValidPinFormat('Password_2026')).toBe(true)
     })
 
-    it('should reject non-6-digit inputs', () => {
-      expect(isValidPinFormat('12345')).toBe(false)
-      expect(isValidPinFormat('1234567')).toBe(false)
+    it('should reject inputs shorter than minimum length', () => {
+      expect(isValidPinFormat('1'.repeat(AUTH_PASSWORD_MIN_LENGTH - 1))).toBe(false)
       expect(isValidPinFormat('')).toBe(false)
     })
 
-    it('should reject non-numeric inputs', () => {
-      expect(isValidPinFormat('abcdef')).toBe(false)
-      expect(isValidPinFormat('12345a')).toBe(false)
-      expect(isValidPinFormat('123 45')).toBe(false)
+    it('should reject inputs longer than maximum length', () => {
+      expect(isValidPinFormat('1'.repeat(AUTH_PASSWORD_MAX_LENGTH + 1))).toBe(false)
     })
   })
 

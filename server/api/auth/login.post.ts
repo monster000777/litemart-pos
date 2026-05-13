@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 格式错误'
+        message: '密码格式错误'
       })
     }
 
@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 409,
           statusMessage: 'Conflict',
-          message: '系统尚未初始化管理员 PIN，请先完成注册'
+          message: '系统尚未初始化管理员密码，请先完成注册'
         })
       }
 
@@ -125,7 +125,7 @@ export default defineEventHandler(async (event) => {
 
     const pinValid = await verifyPin(pin, user.pinHash)
     if (!pinValid) {
-      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `PIN 错误：${uid}`, clientIp)
+      await writeAuditLog(AUDIT_ACTIONS.LOGIN_FAILED, `密码错误：${uid}`, clientIp)
       const newLockSeconds = limiter.recordFailure(clientIp)
       if (newLockSeconds !== null) {
         throw createError({
@@ -138,7 +138,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
-        message: 'PIN 错误'
+        message: '密码错误'
       })
     }
 

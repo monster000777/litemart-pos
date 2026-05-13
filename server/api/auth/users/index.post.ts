@@ -1,7 +1,7 @@
 import { H3Error } from 'h3'
 import { hashPin, isValidPinFormat } from '~~/server/services/auth-service'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
-import { createAuthUser, isPinInUse } from '~~/server/services/auth-user-service'
+import { createAuthUser } from '~~/server/services/auth-user-service'
 import { getClientIp } from '~~/server/utils/request'
 import { isUserRole, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 格式错误'
+        message: '密码格式错误'
       })
     }
 
@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '两次输入的 PIN 不一致'
+        message: '两次输入的密码不一致'
       })
     }
 
@@ -63,14 +63,6 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         statusMessage: 'Bad Request',
         message: '账号角色无效'
-      })
-    }
-
-    if (await isPinInUse(pin)) {
-      throw createError({
-        statusCode: 409,
-        statusMessage: 'Conflict',
-        message: 'PIN 已被其他账号使用'
       })
     }
 

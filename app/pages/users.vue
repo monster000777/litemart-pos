@@ -24,6 +24,7 @@ import TableHead from '~/components/ui/table/TableHead.vue'
 import TableHeader from '~/components/ui/table/TableHeader.vue'
 import TableRow from '~/components/ui/table/TableRow.vue'
 import type { AuthUserDto, AuthUserListResponse } from '~/types/auth-user'
+import { AUTH_PASSWORD_MAX_LENGTH } from '~~/shared/constants/auth'
 import { ROLE_LABELS, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 const { toast } = useToast()
@@ -289,13 +290,13 @@ const submitResetPin = async () => {
       }
     })
     toast({
-      title: `${resetTarget.value.uid} 的 PIN 已重置`,
+      title: `${resetTarget.value.uid} 的密码已重置`,
       variant: 'success',
       duration: 3000
     })
     resetSheetOpen.value = false
   } catch (err) {
-    resetError.value = getApiErrorMessage(err, 'PIN 重置失败，请稍后重试')
+    resetError.value = getApiErrorMessage(err, '密码重置失败，请稍后重试')
     toast({ title: resetError.value, variant: 'error', duration: 3000 })
   } finally {
     resetting.value = false
@@ -429,7 +430,7 @@ const submitResetPin = async () => {
               </TableCell>
               <TableCell class="text-sm text-slate-500">
                 {{
-                  user.role === USER_ROLES.ADMIN ? '拥有完整后台权限' : '使用账号名称 + PIN 登录'
+                  user.role === USER_ROLES.ADMIN ? '拥有完整后台权限' : '使用账号名称 + 密码登录'
                 }}
               </TableCell>
               <TableCell>
@@ -473,7 +474,7 @@ const submitResetPin = async () => {
                     @click="openResetSheet(user)"
                   >
                     <KeyRound class="h-3.5 w-3.5" />
-                    重置 PIN
+                    重置密码
                   </button>
                   <button
                     type="button"
@@ -504,7 +505,7 @@ const submitResetPin = async () => {
         <SheetHeader>
           <SheetTitle>新增账号</SheetTitle>
           <SheetDescription
-            >创建一个新的收银员、店长或管理员账号，并分配独立 PIN。</SheetDescription
+            >创建一个新的收银员、店长或管理员账号，并分配独立密码。</SheetDescription
           >
         </SheetHeader>
 
@@ -534,25 +535,23 @@ const submitResetPin = async () => {
 
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">6 位 PIN</span>
+              <span class="text-sm font-medium text-slate-700">登录密码</span>
               <input
                 v-model="createForm.pin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="例如：102938"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
+                placeholder="请输入登录密码"
                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>
 
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">确认 PIN</span>
+              <span class="text-sm font-medium text-slate-700">确认密码</span>
               <input
                 v-model="createForm.confirmPin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="再次输入 PIN"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
+                placeholder="再次输入密码"
                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>
@@ -589,34 +588,30 @@ const submitResetPin = async () => {
     <Sheet v-model:open="resetSheetOpen">
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>重置账号 PIN</SheetTitle>
-          <SheetDescription
-            >为「{{ resetTarget?.uid || '-' }}」设置新的 6 位 PIN。</SheetDescription
-          >
+          <SheetTitle>重置账号密码</SheetTitle>
+          <SheetDescription>为「{{ resetTarget?.uid || '-' }}」设置新的登录密码。</SheetDescription>
         </SheetHeader>
 
         <form class="mt-6 space-y-4" @submit.prevent="submitResetPin">
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">新 PIN</span>
+              <span class="text-sm font-medium text-slate-700">新密码</span>
               <input
                 v-model="resetForm.newPin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="输入新的 6 位 PIN"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
+                placeholder="输入新的登录密码"
                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>
 
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">确认 PIN</span>
+              <span class="text-sm font-medium text-slate-700">确认密码</span>
               <input
                 v-model="resetForm.confirmPin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="再次输入 PIN"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
+                placeholder="再次输入密码"
                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
               />
             </label>

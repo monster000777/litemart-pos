@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: 'PIN 格式错误'
+        message: '密码格式错误'
       })
     }
 
@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: 'Bad Request',
-        message: '两次输入的 PIN 不一致'
+        message: '两次输入的密码不一致'
       })
     }
 
@@ -86,7 +86,7 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 409,
         statusMessage: 'Conflict',
-        message: '系统已配置初始化 PIN，请直接登录'
+        message: '系统已配置初始化管理员密码，请直接登录'
       })
     }
 

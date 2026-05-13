@@ -8,6 +8,7 @@ import {
   Send,
   UserCircle
 } from 'lucide-vue-next'
+import { AUTH_PASSWORD_MAX_LENGTH } from '~~/shared/constants/auth'
 import { roleHasAtLeast, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 const { toast } = useToast()
@@ -160,12 +161,12 @@ const submitPin = async () => {
         confirmPin: pinForm.confirmPin
       }
     })
-    toast({ title: 'PIN 码修改成功', variant: 'success', duration: 3000 })
+    toast({ title: '密码修改成功', variant: 'success', duration: 3000 })
     pinForm.oldPin = ''
     pinForm.newPin = ''
     pinForm.confirmPin = ''
   } catch (err) {
-    toast({ title: getApiErrorMessage(err, 'PIN 码修改失败'), variant: 'error', duration: 3000 })
+    toast({ title: getApiErrorMessage(err, '密码修改失败'), variant: 'error', duration: 3000 })
   } finally {
     submittingPin.value = false
   }
@@ -304,7 +305,7 @@ const refreshInviteCode = async () => {
         </div>
       </article>
 
-      <!-- 修改 PIN -->
+      <!-- 修改密码 -->
       <article class="flex flex-col rounded-2xl border border-slate-100 bg-white p-6">
         <div class="mb-6 flex items-center gap-3">
           <div
@@ -313,40 +314,37 @@ const refreshInviteCode = async () => {
             <KeyRound class="h-5 w-5" />
           </div>
           <div>
-            <h3 class="font-medium text-slate-900">修改 PIN 码</h3>
-            <p class="text-xs text-slate-500">凭旧 PIN 码设置新的登录密码</p>
+            <h3 class="font-medium text-slate-900">修改登录密码</h3>
+            <p class="text-xs text-slate-500">凭旧密码设置新的登录密码</p>
           </div>
         </div>
 
         <form class="flex flex-1 flex-col space-y-4" @submit.prevent="submitPin">
           <label class="block space-y-2">
-            <span class="text-sm font-medium text-slate-700">当前 PIN</span>
+            <span class="text-sm font-medium text-slate-700">当前密码</span>
             <input
               v-model="pinForm.oldPin"
               type="password"
-              inputmode="numeric"
-              maxlength="6"
+              :maxlength="AUTH_PASSWORD_MAX_LENGTH"
               class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </label>
           <div class="grid grid-cols-2 gap-3">
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">新 PIN</span>
+              <span class="text-sm font-medium text-slate-700">新密码</span>
               <input
                 v-model="pinForm.newPin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                 class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
               />
             </label>
             <label class="block space-y-2">
-              <span class="text-sm font-medium text-slate-700">确认新 PIN</span>
+              <span class="text-sm font-medium text-slate-700">确认新密码</span>
               <input
                 v-model="pinForm.confirmPin"
                 type="password"
-                inputmode="numeric"
-                maxlength="6"
+                :maxlength="AUTH_PASSWORD_MAX_LENGTH"
                 class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
               />
             </label>
