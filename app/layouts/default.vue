@@ -19,7 +19,7 @@ const route = useRoute()
 const loggingOut = ref(false)
 const authState = useState<boolean | null>('auth:verified', () => null)
 const authRole = useState<UserRole | null>('auth:role', () => null)
-const alertCount = ref(0)
+const { alertCount, fetchAlerts } = useAlertCount()
 
 const navItems = [
   { label: 'Checkout', title: '收银台', to: '/', icon: ShoppingCart },
@@ -44,15 +44,6 @@ const roleLabel = computed(() => (authRole.value ? ROLE_LABELS[authRole.value] :
 const isActive = (to: string) => {
   if (to === '/') return route.path === '/'
   return route.path.startsWith(to)
-}
-
-const fetchAlerts = async () => {
-  try {
-    const res = await $fetch<{ count: number }>('/api/products/alerts')
-    alertCount.value = res.count
-  } catch {
-    alertCount.value = 0
-  }
 }
 
 let alertTimer: ReturnType<typeof setInterval> | null = null

@@ -12,6 +12,8 @@ describe('Supplier Service', () => {
   beforeEach(async () => {
     await prisma.purchaseItem.deleteMany()
     await prisma.purchaseOrder.deleteMany()
+    await prisma.orderItem.deleteMany()
+    await prisma.order.deleteMany()
     await prisma.product.deleteMany()
     await prisma.supplier.deleteMany()
   })

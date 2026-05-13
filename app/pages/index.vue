@@ -13,6 +13,7 @@ const isLookingUpMember = ref(false)
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const { formatPrice } = useFormat()
+const { fetchAlerts } = useAlertCount()
 const cartStore = useCartStore()
 
 const { data, pending, error, refresh } = await useAsyncData('products', () =>
@@ -162,6 +163,7 @@ const checkout = async () => {
     memberPhone.value = ''
     clearNuxtData()
     await refresh()
+    fetchAlerts()
   } catch (err) {
     errorMessage.value = getApiErrorMessage(err, '结算失败')
     toast({ title: errorMessage.value, variant: 'error', duration: 2500 })

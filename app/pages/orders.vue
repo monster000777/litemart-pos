@@ -8,6 +8,7 @@ const refundingId = ref('')
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const { formatPrice, formatDate } = useFormat()
+const { fetchAlerts } = useAlertCount()
 
 const search = ref('')
 const debouncedSearch = ref('')
@@ -105,6 +106,7 @@ const refundOrder = async (orderId: string, orderNo: string) => {
     toast({ title: `订单 ${orderNo} 已退款`, variant: 'success', duration: 3000 })
     clearNuxtData()
     await refreshNuxtData('orders')
+    fetchAlerts()
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '退款失败'), variant: 'error', duration: 3000 })
   } finally {

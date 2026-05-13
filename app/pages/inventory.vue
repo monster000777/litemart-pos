@@ -37,6 +37,7 @@ const formError = ref('')
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const { formatPrice } = useFormat()
+const { fetchAlerts } = useAlertCount()
 
 const pageError = computed(() =>
   error.value ? getApiErrorMessage(error.value, '库存加载失败，请稍后重试') : ''
@@ -69,6 +70,7 @@ const resetForm = () => {
 const refreshInventory = async () => {
   clearNuxtData()
   await refreshNuxtData('inventory-products')
+  fetchAlerts()
 }
 
 const openCreate = () => {

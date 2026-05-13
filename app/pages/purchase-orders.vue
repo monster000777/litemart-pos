@@ -25,6 +25,7 @@ const submitting = ref(false)
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const { formatPrice, formatDate } = useFormat()
+const { fetchAlerts } = useAlertCount()
 
 const queryParams = computed(() => ({
   status: statusFilter.value || undefined,
@@ -187,6 +188,7 @@ const receiveOrder = async (order: PurchaseOrderDto) => {
     toast({ title: '采购单已入库', variant: 'success', duration: 3000 })
     clearNuxtData()
     await refresh()
+    fetchAlerts()
   } catch (err) {
     toast({ title: getApiErrorMessage(err, '入库失败'), variant: 'error', duration: 3000 })
   }
