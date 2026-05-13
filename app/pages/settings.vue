@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { KeyRound, LoaderCircle, QrCode, RefreshCw, UserCircle } from 'lucide-vue-next'
+import {
+  KeyRound,
+  LoaderCircle,
+  Pencil,
+  QrCode,
+  RefreshCw,
+  Send,
+  UserCircle
+} from 'lucide-vue-next'
 import { roleHasAtLeast, USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 const { toast } = useToast()
 const { getApiErrorMessage } = useApiError()
 const authRole = useState<UserRole | null>('auth:role')
 
-const submittingProfile = ref(false)
 const submittingPin = ref(false)
 const refreshingCode = ref(false)
+
+// Phone editing state
+const isEditingPhone = ref(false)
+const phoneEditForm = reactive({ newPhone: '', code: '' })
+const sendingCode = ref(false)
+const codeCooldown = ref(0)
+const helperMessage = ref('')
+let codeTimer: ReturnType<typeof setInterval> | null = null
 
 const profileForm = reactive({ uid: '', phone: '' })
 const pinForm = reactive({ oldPin: '', newPin: '', confirmPin: '' })
@@ -32,19 +47,103 @@ onMounted(async () => {
   }
 })
 
-const submitProfile = async () => {
-  if (submittingProfile.value || !profileForm.phone.trim()) return
-  submittingProfile.value = true
+onUnmounted(() => {
+  if (codeTimer) clearInterval(codeTimer)
+})
+
+const startEditPhone = () => {
+  isEditingPhone.value = true
+  phoneEditForm.newPhone = ''
+  phoneEditForm.code = ''
+  helperMessage.value = ''
+}
+
+const cancelEditPhone = () => {
+  isEditingPhone.value = false
+  phoneEditForm.newPhone = ''
+  phoneEditForm.code = ''
+  helperMessage.value = ''
+  if (codeTimer) {
+    clearInterval(codeTimer)
+    codeTimer = null
+  }
+  codeCooldown.value = 0
+}
+
+const sendPhoneCode = async () => {
+  const phone = phoneEditForm.newPhone.trim()
+  if (!phone || !/^1\d{10}$/.test(phone)) {
+    helperMessage.value = '请输入正确的 11 位手机号'
+    return
+  }
+
+  if (phone === profileForm.phone) {
+    helperMessage.value = '新手机号不能与当前相同'
+    return
+  }
+
+  sendingCode.value = true
+  helperMessage.value = ''
   try {
-    await $fetch('/api/auth/profile', {
-      method: 'PUT',
-      body: { phone: profileForm.phone.trim() }
-    })
-    toast({ title: '个人资料已更新', variant: 'success', duration: 3000 })
+    const res = await $fetch<{ success: boolean; message: string; mockCode?: string }>(
+      '/api/auth/send-change-phone-otp',
+      {
+        method: 'POST',
+        body: { phone }
+      }
+    )
+
+    if (res.mockCode) {
+      helperMessage.value = `验证码已发送。为了方便测试，验证码是: ${res.mockCode}`
+    } else {
+      helperMessage.value = '验证码已发送，请查收'
+    }
+
+    // Start countdown
+    codeCooldown.value = 60
+    codeTimer = setInterval(() => {
+      codeCooldown.value--
+      if (codeCooldown.value <= 0) {
+        codeCooldown.value = 0
+        if (codeTimer) clearInterval(codeTimer)
+      }
+    }, 1000)
   } catch (err) {
-    toast({ title: getApiErrorMessage(err, '资料更新失败'), variant: 'error', duration: 3000 })
+    helperMessage.value = getApiErrorMessage(err, '发送验证码失败')
   } finally {
-    submittingProfile.value = false
+    sendingCode.value = false
+  }
+}
+
+const submittingPhoneChange = ref(false)
+
+const submitPhoneChange = async () => {
+  const phone = phoneEditForm.newPhone.trim()
+  const code = phoneEditForm.code.trim()
+
+  if (!phone || !/^1\d{10}$/.test(phone)) {
+    toast({ title: '请输入正确的手机号', variant: 'error', duration: 3000 })
+    return
+  }
+
+  if (!code || !/^\d{6}$/.test(code)) {
+    toast({ title: '请输入6位验证码', variant: 'error', duration: 3000 })
+    return
+  }
+
+  submittingPhoneChange.value = true
+  try {
+    await $fetch('/api/auth/change-phone', {
+      method: 'POST',
+      body: { phone, code }
+    })
+    profileForm.phone = phone
+    toast({ title: '手机号更换成功', variant: 'success', duration: 3000 })
+    cancelEditPhone()
+  } catch (err) {
+    toast({ title: getApiErrorMessage(err, '更换手机号失败'), variant: 'error', duration: 3000 })
+  } finally {
+    submittingPhoneChange.value = false
   }
 }
 
@@ -112,7 +211,7 @@ const refreshInviteCode = async () => {
           </div>
         </div>
 
-        <form class="flex flex-1 flex-col space-y-4" @submit.prevent="submitProfile">
+        <div class="flex flex-1 flex-col space-y-4">
           <label class="block space-y-2">
             <span class="text-sm font-medium text-slate-700">账号 UID</span>
             <input
@@ -124,24 +223,85 @@ const refreshInviteCode = async () => {
           </label>
           <label class="block space-y-2">
             <span class="text-sm font-medium text-slate-700">绑定手机号</span>
-            <input
-              v-model="profileForm.phone"
-              type="text"
-              maxlength="11"
-              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:bg-white"
-            />
+            <div class="flex items-center gap-2">
+              <span
+                class="flex-1 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500"
+              >
+                {{ profileForm.phone || '未绑定' }}
+              </span>
+              <button
+                v-if="!isEditingPhone"
+                type="button"
+                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+                @click="startEditPhone"
+              >
+                <Pencil class="h-4 w-4" />
+                <span>编辑</span>
+              </button>
+            </div>
           </label>
-          <div class="mt-auto pt-4">
-            <button
-              type="submit"
-              class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-              :disabled="submittingProfile || !profileForm.phone.trim()"
-            >
-              <LoaderCircle v-if="submittingProfile" class="h-4 w-4 animate-spin" />
-              <span>保存资料</span>
-            </button>
+
+          <!-- Phone edit panel -->
+          <div
+            v-if="isEditingPhone"
+            class="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4"
+          >
+            <label class="block space-y-2">
+              <span class="text-sm font-medium text-slate-700">新手机号</span>
+              <div class="flex gap-2">
+                <input
+                  v-model="phoneEditForm.newPhone"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="11"
+                  placeholder="请输入新手机号"
+                  class="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                />
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+                  :disabled="sendingCode || codeCooldown > 0"
+                  @click="sendPhoneCode"
+                >
+                  <LoaderCircle v-if="sendingCode" class="h-4 w-4 animate-spin" />
+                  <Send v-else class="h-4 w-4" />
+                  <span>{{ codeCooldown > 0 ? `${codeCooldown}s` : '获取验证码' }}</span>
+                </button>
+              </div>
+            </label>
+            <label class="block space-y-2">
+              <span class="text-sm font-medium text-slate-700">验证码</span>
+              <input
+                v-model="phoneEditForm.code"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="请输入6位验证码"
+                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+              />
+            </label>
+            <!-- Helper message -->
+            <p v-if="helperMessage" class="text-xs text-slate-500">{{ helperMessage }}</p>
+            <div class="flex gap-2 pt-2">
+              <button
+                type="button"
+                class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                @click="cancelEditPhone"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+                :disabled="submittingPhoneChange || !phoneEditForm.code"
+                @click="submitPhoneChange"
+              >
+                <LoaderCircle v-if="submittingPhoneChange" class="h-4 w-4 animate-spin" />
+                <span>确认更换</span>
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </article>
 
       <!-- 修改 PIN -->

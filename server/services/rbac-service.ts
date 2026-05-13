@@ -68,8 +68,8 @@ export const canAccessApiRoute = (role: UserRole, pathname: string, method: stri
     return roleHasAtLeast(role, USER_ROLES.MANAGER)
   }
 
-  if (pathname.startsWith('/api/insights')) {
-    return roleHasAtLeast(role, USER_ROLES.MANAGER)
+  if (pathname.startsWith('/api/insights') || pathname.startsWith('/api/dashboard')) {
+    return roleHasAtLeast(role, USER_ROLES.CASHIER)
   }
 
   if (pathname.startsWith('/api/audit-logs')) {
