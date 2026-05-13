@@ -24,6 +24,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* 隐藏 Edge/IE 浏览器自带的密码框小眼睛和清除按钮 */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+}
+
 :root {
   --font-serif: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
   --font-sans: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;

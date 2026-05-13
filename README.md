@@ -223,11 +223,22 @@ openssl rand -hex 32
 
 这是正常现象，不是故障。
 
-### 3. 生成 Prisma Client
+### 3. 初始化数据库（建表与填充基础数据）
+
+在第一次运行项目时，你需要先建立数据库表结构，并填充默认分类、管理员账号等基础数据：
 
 ```bash
-npm run prisma:generate
+# 执行历史迁移文件，建表并自动生成 Prisma Client
+npm run prisma:migrate
+
+# 向数据库中填充种子（示例分类、商品、会员及初始系统配置等）
+npm run prisma:seed
 ```
+
+> **注意**：
+>
+> 1. `npm run prisma:migrate` 内部会自动触发 `generate` 操作生成 Client 提示代码，一般无需单独运行 `npm run prisma:generate` 除非你在拉取代码后仅仅需要更新 TS 类型。
+> 2. 如果你在开发初期需要强制同步表结构并灌入假数据快速测试，可以通过 `npx prisma db push` 配合 `npx prisma db seed` 来完成。
 
 ### 4. 启动项目
 
