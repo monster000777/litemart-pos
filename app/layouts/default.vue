@@ -106,7 +106,7 @@ const logout = async () => {
               class="flex flex-col transition-all duration-300 ease-in-out"
             >
               <span
-                class="text-[15px] font-bold leading-tight tracking-tight text-slate-900 dark:text-zinc-50"
+                class="text-[17px] font-bold leading-tight tracking-tight text-slate-900 dark:text-zinc-50"
               >
                 LiteMart POS
               </span>
@@ -194,7 +194,7 @@ const logout = async () => {
         <div class="flex h-16 w-full items-center justify-between gap-4 px-8">
           <div class="flex items-center gap-2">
             <ShoppingCart class="h-4.5 w-4.5 text-slate-900 dark:text-zinc-50" />
-            <h1 class="text-sm font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
+            <h1 class="text-[17px] font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
               LiteMart POS
             </h1>
           </div>

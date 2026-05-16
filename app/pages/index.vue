@@ -373,7 +373,7 @@ const checkout = async () => {
 
       <button
         type="button"
-        class="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300"
+        class="mt-6 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:bg-slate-300 dark:bg-zinc-800 dark:text-zinc-50 dark:disabled:bg-zinc-700"
         :disabled="!canCheckout"
         @click="checkout"
       >
