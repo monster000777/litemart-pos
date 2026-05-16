@@ -1,5 +1,5 @@
-// 智能助理全局状态 —— 独立于页面组件生命周期，路由切换不会打断进行中的请求
 export interface CopilotMessage {
+  id?: string
   role: 'user' | 'assistant'
   content: string
 }
@@ -16,183 +16,286 @@ export interface CopilotSession {
   title: string
   updatedAt: number
   messages: CopilotMessage[]
-  pending: boolean // 每个会话独立的加载状态
+  pending: boolean
+  isLocal?: boolean
 }
 
-// 使用模块级变量保持单例，避免每次调用 composable 时重新创建
-let _initialized = false
+const DEFAULT_SESSION_TITLE = '新对话'
+
+let initialized = false
 
 const sessions = ref<CopilotSession[]>([])
 const activeSessionId = ref<string>('')
 const chatInput = ref('')
 
+const mapRemoteSession = <
+  T extends { id: string; title: string; updatedAt: number; messages?: CopilotMessage[] }
+>(
+  session: T
+): CopilotSession => ({
+  id: session.id,
+  title: session.title,
+  updatedAt: session.updatedAt,
+  messages: session.messages || [],
+  pending: false,
+  isLocal: false
+})
+
 export function useCopilot() {
-  const activeSession = computed(() => sessions.value.find((s) => s.id === activeSessionId.value))
+  const activeSession = computed(() =>
+    sessions.value.find((session) => session.id === activeSessionId.value)
+  )
   const chatHistory = computed(() => activeSession.value?.messages || [])
-  // 当前活跃会话的加载状态（UI 层绑定此值）
   const chatPending = computed(() => activeSession.value?.pending ?? false)
 
-  // 初始化 —— 只执行一次（从 localStorage 恢复数据）
-  const initialize = () => {
-    if (_initialized) return
-    _initialized = true
+  const persistLocalBackup = () => {
+    if (!import.meta.client) return
+
+    const serializable = sessions.value.map((session) => ({
+      id: session.id,
+      title: session.title,
+      updatedAt: session.updatedAt,
+      messages: session.messages,
+      isLocal: session.isLocal ?? false
+    }))
+    localStorage.setItem('litemart-copilot-sessions', JSON.stringify(serializable))
+  }
+
+  const syncSessionsFromDb = async () => {
+    try {
+      return await $fetch<
+        Array<{ id: string; title: string; updatedAt: number; messageCount: number }>
+      >('/api/chat-sessions')
+    } catch {
+      return []
+    }
+  }
+
+  const loadSessionDetail = async (id: string): Promise<CopilotSession | null> => {
+    try {
+      const session = await $fetch<{
+        id: string
+        title: string
+        updatedAt: number
+        messages: CopilotMessage[]
+      }>(`/api/chat-sessions/${id}`)
+      return mapRemoteSession(session)
+    } catch {
+      return null
+    }
+  }
+
+  const initialize = async () => {
+    if (initialized) return
+    initialized = true
 
     if (!import.meta.client) return
 
-    const savedSessions = localStorage.getItem('litemart-copilot-sessions')
-    if (savedSessions) {
-      try {
-        const parsed: CopilotSession[] = JSON.parse(savedSessions)
-        // 确保老数据兼容：补全 pending 字段
-        sessions.value = parsed.map((s) => ({ ...s, pending: false }))
-        const firstSession = sessions.value.at(0)
+    try {
+      const list = await syncSessionsFromDb()
+
+      if (list.length > 0) {
+        const firstSession = await loadSessionDetail(list[0].id)
         if (firstSession) {
+          sessions.value = list.map((session) =>
+            session.id === firstSession.id
+              ? firstSession
+              : mapRemoteSession({ ...session, messages: [] })
+          )
           activeSessionId.value = firstSession.id
         } else {
-          createNewSession()
-        }
-      } catch {
-        createNewSession()
-      }
-    } else {
-      // 兼容老版本历史记录
-      const oldHistory = localStorage.getItem('litemart-copilot-history')
-      if (oldHistory) {
-        try {
-          const messages = JSON.parse(oldHistory)
-          if (messages.length > 0) {
-            sessions.value = [
-              {
-                id: Date.now().toString(),
-                title: '历史会话',
-                updatedAt: Date.now(),
-                messages,
-                pending: false
-              }
-            ]
-            const firstSession = sessions.value.at(0)
-            if (firstSession) {
-              activeSessionId.value = firstSession.id
-            }
-          } else {
-            createNewSession()
-          }
-          localStorage.removeItem('litemart-copilot-history')
-        } catch {
-          createNewSession()
+          sessions.value = list.map((session) => mapRemoteSession({ ...session, messages: [] }))
+          activeSessionId.value = list[0].id
         }
       } else {
-        createNewSession()
+        await createNewSession()
       }
+    } catch {
+      await createNewSession()
     }
 
-    // 持久化 watcher —— 序列化时排除运行时 pending 状态
-    // 使用 detached effectScope 确保 watcher 不会随组件卸载而销毁，从而保证后台请求完成时仍能持久化
     const scope = effectScope(true)
     scope.run(() => {
-      watch(
-        sessions,
-        (val) => {
-          if (import.meta.client) {
-            const serializable = val.map((session) => {
-              const snapshot: CopilotSession = {
-                ...session,
-                messages: [...session.messages],
-                pending: false
-              }
-              return {
-                id: snapshot.id,
-                title: snapshot.title,
-                updatedAt: snapshot.updatedAt,
-                messages: snapshot.messages
-              }
-            })
-            localStorage.setItem('litemart-copilot-sessions', JSON.stringify(serializable))
-          }
-        },
-        { deep: true }
-      )
+      watch(sessions, persistLocalBackup, { deep: true, immediate: true })
     })
   }
 
-  const createNewSession = () => {
-    // 查找是否已经存在空会话（避免堆积一堆"新对话"）
-    const emptySession = sessions.value.find((s) => s.messages.length === 0)
+  const ensureRemoteSession = async (session: CopilotSession) => {
+    if (!session.isLocal) return session
+
+    try {
+      const previousId = session.id
+      const created = await $fetch<{ id: string; title: string; updatedAt: number; messages: [] }>(
+        '/api/chat-sessions',
+        { method: 'POST' }
+      )
+
+      session.id = created.id
+      session.updatedAt = created.updatedAt
+      session.isLocal = false
+
+      if (session.title !== DEFAULT_SESSION_TITLE) {
+        await $fetch(`/api/chat-sessions/${session.id}`, {
+          method: 'PATCH',
+          body: { title: session.title }
+        }).catch(() => undefined)
+      }
+
+      if (activeSessionId.value === previousId || activeSession.value === session) {
+        activeSessionId.value = session.id
+      }
+
+      return session
+    } catch {
+      return null
+    }
+  }
+
+  const createNewSession = async () => {
+    const emptySession = sessions.value.find((session) => session.messages.length === 0)
     if (emptySession) {
       activeSessionId.value = emptySession.id
       return
     }
 
-    const newSession: CopilotSession = {
-      id: Date.now().toString(),
-      title: '新对话',
-      updatedAt: Date.now(),
-      messages: [],
-      pending: false
+    try {
+      const session = await $fetch<{ id: string; title: string; updatedAt: number; messages: [] }>(
+        '/api/chat-sessions',
+        { method: 'POST' }
+      )
+      sessions.value.unshift(mapRemoteSession(session))
+      activeSessionId.value = session.id
+    } catch {
+      const localId = `local-${Date.now()}`
+      sessions.value.unshift({
+        id: localId,
+        title: DEFAULT_SESSION_TITLE,
+        updatedAt: Date.now(),
+        messages: [],
+        pending: false,
+        isLocal: true
+      })
+      activeSessionId.value = localId
     }
-    sessions.value.unshift(newSession)
-    activeSessionId.value = newSession.id
   }
 
-  const deleteSession = (id: string) => {
-    const target = sessions.value.find((s) => s.id === id)
-    // 阻止删除正在请求中的会话，避免请求完成后写入已销毁对象
-    if (target?.pending) return
+  const deleteSession = async (id: string) => {
+    const target = sessions.value.find((session) => session.id === id)
+    if (!target || target.pending) return
 
-    const idx = sessions.value.findIndex((s) => s.id === id)
-    if (idx !== -1) {
-      sessions.value.splice(idx, 1)
+    const idx = sessions.value.findIndex((session) => session.id === id)
+    if (idx === -1) return
+
+    sessions.value.splice(idx, 1)
+
+    if (activeSessionId.value === id) {
       if (sessions.value.length === 0) {
-        createNewSession()
-      } else if (activeSessionId.value === id) {
-        const firstSession = sessions.value.at(0)
-        if (firstSession) {
-          activeSessionId.value = firstSession.id
+        await createNewSession()
+      } else {
+        const next = sessions.value[0]
+        activeSessionId.value = next.id
+        if (!next.isLocal && next.messages.length === 0) {
+          const detail = await loadSessionDetail(next.id)
+          if (detail) {
+            const nextIdx = sessions.value.findIndex((session) => session.id === next.id)
+            if (nextIdx !== -1) sessions.value[nextIdx] = detail
+          }
         }
       }
     }
-  }
 
-  const clearChat = () => {
-    // 阻止在请求进行中时清空，避免产生孤立的 assistant 消息
-    if (activeSession.value?.pending) return
+    if (target.isLocal) return
 
-    if (activeSession.value) {
-      activeSession.value.messages = []
-      activeSession.value.title = '新对话'
-      activeSession.value.updatedAt = Date.now()
+    try {
+      await $fetch(`/api/chat-sessions/${id}`, { method: 'DELETE' })
+    } catch {
+      sessions.value.splice(idx, 0, target)
     }
-    chatInput.value = ''
   }
 
-  // 核心：发送消息 —— 此处的 $fetch 是在 composable 作用域执行的，
-  // 即使页面组件被卸载，Promise 仍会正常 resolve 并写回 sessions 状态
+  const clearChat = async () => {
+    if (!activeSession.value || activeSession.value.pending) return
+
+    const session = activeSession.value
+    const snapshot = {
+      title: session.title,
+      updatedAt: session.updatedAt,
+      messages: [...session.messages]
+    }
+
+    session.messages = []
+    session.title = DEFAULT_SESSION_TITLE
+    session.updatedAt = Date.now()
+    chatInput.value = ''
+
+    if (session.isLocal) return
+
+    try {
+      await $fetch(`/api/chat-sessions/${session.id}/messages`, { method: 'DELETE' })
+    } catch {
+      session.messages = snapshot.messages
+      session.title = snapshot.title
+      session.updatedAt = snapshot.updatedAt
+    }
+  }
+
+  const switchToSession = async (id: string) => {
+    if (activeSessionId.value === id) return
+
+    const session = sessions.value.find((item) => item.id === id)
+    if (!session) return
+
+    activeSessionId.value = id
+    if (session.isLocal || session.messages.length > 0) return
+
+    const detail = await loadSessionDetail(id)
+    if (detail) {
+      const idx = sessions.value.findIndex((item) => item.id === id)
+      if (idx !== -1) sessions.value[idx] = detail
+    }
+  }
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || !activeSession.value || activeSession.value.pending) return
 
-    // 捕获发送时刻的会话引用，即使用户中途切换了活跃会话，
-    // 回复仍然写入正确的会话对象
     const session = activeSession.value
+    const normalizedText = text.trim()
+    const isFirstMessage = session.messages.length === 0
 
-    if (session.messages.length === 0) {
-      session.title = text.slice(0, 15) + (text.length > 15 ? '...' : '')
+    if (isFirstMessage) {
+      session.title = normalizedText.slice(0, 15) + (normalizedText.length > 15 ? '...' : '')
     }
 
-    session.messages.push({ role: 'user', content: text.trim() })
+    session.messages.push({ role: 'user', content: normalizedText })
     session.updatedAt = Date.now()
     chatInput.value = ''
     session.pending = true
 
     try {
+      const remoteSession = await ensureRemoteSession(session)
+      const sessionId = remoteSession?.isLocal ? undefined : remoteSession?.id
+
       const res = await $fetch<{ reply: string }>('/api/insights/chat', {
         method: 'POST',
         body: {
-          question: text.trim(),
-          history: session.messages.slice(0, -1)
+          question: normalizedText,
+          history: session.messages.slice(0, -1).map((message) => ({
+            role: message.role,
+            content: message.content
+          })),
+          sessionId
         }
       })
+
       session.messages.push({ role: 'assistant', content: res.reply })
       session.updatedAt = Date.now()
+
+      if (isFirstMessage && sessionId) {
+        await $fetch(`/api/chat-sessions/${sessionId}`, {
+          method: 'PATCH',
+          body: { title: session.title }
+        }).catch(() => undefined)
+      }
     } catch (error: unknown) {
       const err = error as ApiErrorLike
       const msg = err.data?.message || err.message || '发送失败'
@@ -214,6 +317,7 @@ export function useCopilot() {
     createNewSession,
     deleteSession,
     clearChat,
-    sendMessage
+    sendMessage,
+    switchToSession
   }
 }

@@ -1,20 +1,20 @@
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/CormorantGaramond-400.ttf') format('truetype');
+  src: url('../fonts/CormorantGaramond-600.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/CormorantGaramond-600.ttf') format('truetype');
+  src: url('../fonts/CormorantGaramond-600.ttf') format('truetype');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Cormorant Garamond';
-  src: url('/fonts/CormorantGaramond-700.ttf') format('truetype');
+  src: url('../fonts/CormorantGaramond-700.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;

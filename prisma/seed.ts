@@ -14,6 +14,7 @@ type SeedSupplier = {
 type SeedProductTemplate = {
   name: string
   category: string
+  image: string | null
   price: number
   memberPrice: number | null
   costPrice: number
@@ -71,6 +72,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '元气森林气泡水',
     category: '饮料',
+    image: '/uploads/product-cmp3u01oh000dhhkrfpoh4cbx.jpg',
     price: 6,
     memberPrice: 5.5,
     costPrice: 3.2,
@@ -81,6 +83,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '乐事原味薯片',
     category: '零食',
+    image: '/uploads/product-cmp3u01oh000chhkrp1n51vlc.jpg',
     price: 7,
     memberPrice: 6.2,
     costPrice: 3.8,
@@ -91,6 +94,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '得力 0.5mm 黑色签字笔',
     category: '文具',
+    image: '/uploads/product-cmp3u01oh000bhhkr1ofxrft6.jpg',
     price: 3,
     memberPrice: 2.5,
     costPrice: 1.2,
@@ -101,6 +105,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '农夫山泉 550ml',
     category: '饮料',
+    image: '/uploads/product-cmp3u01oi000hhhkroucgm7cb.jpg',
     price: 3,
     memberPrice: 2.5,
     costPrice: 1.3,
@@ -111,6 +116,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '康师傅红烧牛肉面',
     category: '速食',
+    image: '/uploads/product-cmp3u01oh0009hhkrqxyzwcpw.jpg',
     price: 5,
     memberPrice: 4.5,
     costPrice: 2.9,
@@ -121,6 +127,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '伊利纯牛奶 250ml',
     category: '乳品',
+    image: '/uploads/product-cmp3u01oh000ehhkrdp2ls5ko.jpg',
     price: 4,
     memberPrice: 3.5,
     costPrice: 2.2,
@@ -131,6 +138,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '晨光 A5 软抄本',
     category: '文具',
+    image: '/uploads/product-cmp3u01oi000ihhkrol3velvj.jpg',
     price: 5,
     memberPrice: null,
     costPrice: 2.1,
@@ -141,6 +149,7 @@ const productTemplates: SeedProductTemplate[] = [
   {
     name: '德芙丝滑巧克力',
     category: '零食',
+    image: '/uploads/product-cmp3u01oi000khhkratysv2c7.jpg',
     price: 8,
     memberPrice: 7,
     costPrice: 4.5,
@@ -217,6 +226,7 @@ async function main() {
         data: {
           name: template.name,
           category: template.category,
+          image: template.image,
           sku: buildSku(index),
           price: template.price,
           memberPrice: template.memberPrice,
@@ -391,7 +401,7 @@ async function main() {
         customerId: seededCustomers[2].id,
         orderId: refundedOrder.id,
         change: 189,
-        reason: '退款积分回滚'
+        reason: '退款积分回补'
       }
     ]
   })

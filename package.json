@@ -15,9 +15,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "test:setup": "cross-env DATABASE_URL=file:./test.db prisma db push --accept-data-loss",
-    "test": "npm run test:setup && vitest run --fileParallelism false",
-    "test:watch": "vitest --fileParallelism false"
+    "test:setup": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db prisma db push --accept-data-loss --skip-generate",
+    "test": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db npm run test:setup && vitest run --fileParallelism false",
+    "test:watch": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db vitest --fileParallelism false"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",

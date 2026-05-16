@@ -28,7 +28,8 @@ const {
   createNewSession,
   deleteSession,
   clearChat,
-  sendMessage
+  sendMessage,
+  switchToSession
 } = useCopilot()
 
 const chatContainer = ref<HTMLElement | null>(null)
@@ -92,8 +93,8 @@ const handlePresetClick = (q: string) => {
   handleSendMessage()
 }
 
-const handleClearChat = () => {
-  clearChat()
+const handleClearChat = async () => {
+  await clearChat()
   if (textareaRef.value) {
     textareaRef.value.style.height = 'auto'
   }
@@ -116,8 +117,8 @@ const formatChatMessage = (msg: { role: string; content: string }) => {
   return msg.content
 }
 
-onMounted(() => {
-  initialize()
+onMounted(async () => {
+  await initialize()
   setTimeout(() => scrollToBottom(), 100)
 })
 </script>
@@ -159,7 +160,7 @@ onMounted(() => {
               ? 'bg-white border-slate-200 shadow-sm text-indigo-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-indigo-300'
               : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
           "
-          @click="activeSessionId = session.id"
+          @click="switchToSession(session.id)"
         >
           <div class="flex-1 min-w-0 pr-2">
             <p class="flex items-center gap-2 truncate text-sm font-medium" :title="session.title">

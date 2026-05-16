@@ -44,6 +44,7 @@ const { getApiErrorMessage } = useApiError()
 const route = useRoute()
 const authState = useState<boolean | null>('auth:verified', () => null)
 const authRole = useState<UserRole | null>('auth:role', () => null)
+const loginSceneUrl = new URL('../../public/images/login.png', import.meta.url).href
 
 const isLocked = computed(() => lockSeconds.value > 0)
 const isDisabled = computed(() => submitting.value || checkingStatus.value || isLocked.value)
@@ -281,7 +282,7 @@ onUnmounted(() => {
 
     <!-- 左侧氛围区 -->
     <div class="scene-panel">
-      <div class="scene-image" />
+      <div class="scene-image" :style="{ backgroundImage: `url(${loginSceneUrl})` }" />
       <div class="scene-overlay" />
       <div class="scene-content">
         <div class="scene-brand">
@@ -605,7 +606,6 @@ onUnmounted(() => {
 .scene-image {
   position: absolute;
   inset: 0;
-  background-image: url('/images/山谷.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

@@ -321,6 +321,35 @@ const bootstrapSchema = async () => {
       throw error
     }
   }
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ChatSession" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "ChatSession_userId_idx" ON "ChatSession"("userId")
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ChatMessage" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "sessionId" TEXT NOT NULL,
+      "role" TEXT NOT NULL,
+      "content" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ChatMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ChatSession" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "ChatMessage_sessionId_idx" ON "ChatMessage"("sessionId")
+  `)
 }
 
 export const ensureSchemaBootstrapped = () => {

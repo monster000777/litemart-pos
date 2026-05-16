@@ -149,6 +149,28 @@ model PurchaseOrder {
   @@index([status])
 }
 
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId])
+}
+
 model PurchaseItem {
   id              String        @id @default(cuid())
   purchaseOrderId String
