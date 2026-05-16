@@ -26,3 +26,9 @@ logs
 .env.*
 !.env.example
 CLAUDE.md
+
+# Docs (local development notes)
+doc/
+
+# Claude settings (local)
+.claude/settings.local.json
