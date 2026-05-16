@@ -51,6 +51,11 @@ const {
   refresh: refreshProducts
 } = await useAsyncData('dashboard-products', () => $fetch<ProductDto[]>('/api/products'))
 
+const theme = useThemeStore()
+const chartGradientColor = computed(() =>
+  theme.resolved === 'dark' ? 'rgb(129 140 248)' : 'rgb(79 70 229)'
+)
+
 const trend = computed(() => stats.value?.trend ?? [])
 const topProducts = computed(() => stats.value?.topProducts ?? [])
 const hasTrendData = computed(() => trend.value.some((item) => item.amount > 0))
@@ -210,7 +215,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative min-h-screen overflow-x-hidden bg-zinc-50 text-slate-700">
+  <div
+    class="relative min-h-screen overflow-x-hidden bg-zinc-50 text-slate-700 dark:bg-zinc-950 dark:text-zinc-300"
+  >
     <div class="pointer-events-none absolute inset-0">
       <div class="absolute -left-24 top-0 h-64 w-64 rounded-full bg-indigo-200/35 blur-3xl" />
       <div class="absolute right-12 top-40 h-72 w-72 rounded-full bg-sky-200/25 blur-3xl" />
@@ -320,8 +327,8 @@ onUnmounted(() => {
             >
               <defs>
                 <linearGradient id="revenue-area-gradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stop-color="rgb(79 70 229)" stop-opacity="0.35" />
-                  <stop offset="100%" stop-color="rgb(79 70 229)" stop-opacity="0.02" />
+                  <stop offset="0%" :stop-color="chartGradientColor" stop-opacity="0.35" />
+                  <stop offset="100%" :stop-color="chartGradientColor" stop-opacity="0.02" />
                 </linearGradient>
               </defs>
 
@@ -331,7 +338,7 @@ onUnmounted(() => {
                   :x2="chartWidth - 16"
                   :y1="(chartHeight / 5) * line"
                   :y2="(chartHeight / 5) * line"
-                  stroke="rgb(226 232 240)"
+                  stroke="var(--chart-line-light)"
                   stroke-dasharray="3 5"
                 />
               </g>
@@ -340,7 +347,7 @@ onUnmounted(() => {
               <path
                 :d="trendLinePath"
                 fill="none"
-                stroke="rgb(79 70 229)"
+                stroke="var(--chart-line)"
                 stroke-width="2.2"
                 stroke-linecap="round"
               />
@@ -351,7 +358,7 @@ onUnmounted(() => {
                   :cy="point.y"
                   r="4.5"
                   fill="white"
-                  stroke="rgb(79 70 229)"
+                  stroke="var(--chart-line)"
                   stroke-width="2"
                 />
               </g>
@@ -386,7 +393,7 @@ onUnmounted(() => {
                     cy="60"
                     :r="donutRadius"
                     fill="none"
-                    stroke="rgb(226 232 240)"
+                    stroke="var(--chart-line-light)"
                     stroke-width="10"
                   />
                   <circle
@@ -394,7 +401,7 @@ onUnmounted(() => {
                     cy="60"
                     :r="donutRadius"
                     fill="none"
-                    stroke="rgb(16 185 129)"
+                    stroke="var(--chart-emerald)"
                     stroke-width="10"
                     stroke-linecap="round"
                     :stroke-dasharray="`${donutHealthyDash} ${donutCircumference}`"

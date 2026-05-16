@@ -260,7 +260,7 @@ const refreshInviteCode = async () => {
                 />
                 <button
                   type="button"
-                  class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+                  class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--btn-primary-bg)] px-3 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
                   :disabled="sendingCode || codeCooldown > 0"
                   @click="sendPhoneCode"
                 >
@@ -293,7 +293,7 @@ const refreshInviteCode = async () => {
               </button>
               <button
                 type="button"
-                class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+                class="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
                 :disabled="submittingPhoneChange || !phoneEditForm.code"
                 @click="submitPhoneChange"
               >
@@ -352,7 +352,7 @@ const refreshInviteCode = async () => {
           <div class="mt-auto pt-4">
             <button
               type="submit"
-              class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
               :disabled="submittingPin || !pinForm.oldPin || !pinForm.newPin || !pinForm.confirmPin"
             >
               <LoaderCircle v-if="submittingPin" class="h-4 w-4 animate-spin" />

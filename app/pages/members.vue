@@ -134,7 +134,7 @@ const removeMember = async (member: MemberDto) => {
 }
 
 const LEVEL_CONFIG = {
-  NORMAL: { label: '普通', color: '#78716c', bg: '#f5f4f2' },
+  NORMAL: { label: '普通', color: 'var(--text-secondary)', bg: 'var(--bg-input-disabled)' },
   SILVER: { label: '白银', color: '#64748b', bg: '#f1f5f9' },
   GOLD: { label: '黄金', color: '#b45309', bg: '#fef3c7' }
 } as const
@@ -327,14 +327,14 @@ const LEVEL_CONFIG = {
 .header-title {
   font-size: 1.375rem;
   font-weight: 600;
-  color: #1c1917;
+  color: var(--text-primary);
   letter-spacing: -0.01em;
   margin: 0;
 }
 
 .header-count {
   font-size: 0.8125rem;
-  color: #a8a29e;
+  color: var(--text-muted);
 }
 
 .btn-new {
@@ -343,8 +343,8 @@ const LEVEL_CONFIG = {
   gap: 0.375rem;
   height: 2.25rem;
   padding: 0 0.875rem;
-  background: #1c1917;
-  color: #fafaf9;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.875rem;
@@ -353,7 +353,7 @@ const LEVEL_CONFIG = {
   transition: background 0.15s;
 }
 .btn-new:hover {
-  background: #292524;
+  background: var(--btn-primary-hover);
 }
 
 /* ===== 搜索栏 ===== */
@@ -374,7 +374,7 @@ const LEVEL_CONFIG = {
   transform: translateY(-50%);
   width: 0.875rem;
   height: 0.875rem;
-  color: #a8a29e;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -382,11 +382,11 @@ const LEVEL_CONFIG = {
   width: 100%;
   height: 2.25rem;
   padding: 0 0.625rem 0 2rem;
-  border: 1px solid rgba(28, 25, 23, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  color: #1c1917;
-  background: white;
+  color: var(--text-primary);
+  background: var(--bg-input);
   outline: none;
   transition:
     border-color 0.15s,
@@ -394,40 +394,40 @@ const LEVEL_CONFIG = {
   box-sizing: border-box;
 }
 .search-input:focus {
-  border-color: rgba(28, 25, 23, 0.2);
-  box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.04);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--ring-focus);
 }
 .search-input::placeholder {
-  color: #d6d3d1;
+  color: var(--btn-disabled-bg);
 }
 
 .level-select {
   height: 2.25rem;
   padding: 0 0.625rem;
-  border: 1px solid rgba(28, 25, 23, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  color: #57534e;
-  background: white;
+  color: var(--text-medium);
+  background: var(--bg-input);
   outline: none;
   cursor: pointer;
   transition: border-color 0.15s;
 }
 .level-select:focus {
-  border-color: rgba(28, 25, 23, 0.2);
+  border-color: var(--border-focus);
 }
 
 /* ===== 会员列表面板 ===== */
 .member-panel {
-  background: #fafaf9;
-  border: 1px solid rgba(28, 25, 23, 0.07);
+  background: var(--bg-page);
+  border: 1px solid var(--border-default);
   border-radius: 1rem;
   padding: 1.25rem;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #d6d3d1 transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .member-panel::-webkit-scrollbar {
@@ -437,7 +437,7 @@ const LEVEL_CONFIG = {
   background: transparent;
 }
 .member-panel::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
+  background: var(--scrollbar-thumb);
   border-radius: 999px;
 }
 
@@ -446,9 +446,9 @@ const LEVEL_CONFIG = {
   padding: 0.625rem 0.875rem;
   border-radius: 0.375rem;
   font-size: 0.8125rem;
-  color: #be123c;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
+  color: var(--color-error);
+  background: var(--bg-error);
+  border: 1px solid var(--border-error);
   margin-bottom: 0.875rem;
 }
 
@@ -460,8 +460,8 @@ const LEVEL_CONFIG = {
 }
 
 .member-card {
-  background: white;
-  border: 1px solid rgba(28, 25, 23, 0.07);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 0.625rem;
   padding: 0.875rem;
   display: flex;
@@ -473,13 +473,13 @@ const LEVEL_CONFIG = {
 }
 
 .member-card:hover {
-  border-color: rgba(28, 25, 23, 0.14);
+  border-color: var(--border-strong);
   box-shadow: 0 2px 8px rgba(28, 25, 23, 0.05);
 }
 
 .member-card.is-deleting {
-  border-color: #fecdd3;
-  background: #fff1f2;
+  border-color: var(--border-error);
+  background: var(--bg-error);
 }
 
 /* 会员信息 */
@@ -495,7 +495,7 @@ const LEVEL_CONFIG = {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 50%;
-  background: #f5f4f2;
+  background: var(--bg-input-disabled);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -505,7 +505,7 @@ const LEVEL_CONFIG = {
 .avatar-icon {
   width: 1rem;
   height: 1rem;
-  color: #a8a29e;
+  color: var(--text-muted);
 }
 
 .member-detail {
@@ -523,7 +523,7 @@ const LEVEL_CONFIG = {
 .member-name {
   font-size: 0.9375rem;
   font-weight: 500;
-  color: #1c1917;
+  color: var(--text-primary);
 }
 
 .level-badge {
@@ -536,13 +536,13 @@ const LEVEL_CONFIG = {
 
 .member-phone {
   font-size: 0.8125rem;
-  color: #57534e;
+  color: var(--text-medium);
   margin: 0;
 }
 
 .member-meta {
   font-size: 0.75rem;
-  color: #a8a29e;
+  color: var(--text-muted);
   margin: 0.125rem 0 0;
 }
 
@@ -559,10 +559,10 @@ const LEVEL_CONFIG = {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(28, 25, 23, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
-  background: white;
-  color: #78716c;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   cursor: pointer;
   transition:
     border-color 0.15s,
@@ -570,14 +570,14 @@ const LEVEL_CONFIG = {
     background 0.15s;
 }
 .btn-icon:hover {
-  border-color: rgba(28, 25, 23, 0.2);
-  color: #1c1917;
-  background: #fafaf9;
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+  background: var(--bg-page);
 }
 .btn-icon-danger:hover {
-  border-color: #fecdd3;
-  color: #be123c;
-  background: #fff1f2;
+  border-color: var(--border-error);
+  color: var(--color-error);
+  background: var(--bg-error);
 }
 
 /* 删除确认态 */
@@ -591,7 +591,7 @@ const LEVEL_CONFIG = {
 
 .delete-text {
   font-size: 0.875rem;
-  color: #be123c;
+  color: var(--color-error);
   margin: 0;
 }
 
@@ -624,12 +624,12 @@ const LEVEL_CONFIG = {
 }
 
 .btn-confirm-no {
-  background: white;
-  color: #57534e;
-  border: 1px solid rgba(28, 25, 23, 0.12);
+  background: var(--bg-card);
+  color: var(--text-medium);
+  border: 1px solid var(--border-strong);
 }
 .btn-confirm-no:hover {
-  background: #f5f4f2;
+  background: var(--bg-input-disabled);
 }
 
 /* ===== Sheet 表单 ===== */
@@ -642,18 +642,18 @@ const LEVEL_CONFIG = {
 .form-label {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #57534e;
+  color: var(--text-medium);
 }
 
 .form-input {
   width: 100%;
   height: 2.375rem;
   padding: 0 0.75rem;
-  border: 1px solid rgba(28, 25, 23, 0.1);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
   font-size: 0.9375rem;
-  color: #1c1917;
-  background: white;
+  color: var(--text-primary);
+  background: var(--bg-input);
   outline: none;
   transition:
     border-color 0.15s,
@@ -661,15 +661,15 @@ const LEVEL_CONFIG = {
   box-sizing: border-box;
 }
 .form-input:focus {
-  border-color: rgba(28, 25, 23, 0.2);
-  box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.04);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--ring-focus);
 }
 .form-input::placeholder {
-  color: #d6d3d1;
+  color: var(--btn-disabled-bg);
 }
 .form-input.is-disabled {
-  background: #f5f4f2;
-  color: #a8a29e;
+  background: var(--bg-input-disabled);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -684,33 +684,33 @@ const LEVEL_CONFIG = {
 
 .form-error {
   font-size: 0.8125rem;
-  color: #be123c;
+  color: var(--color-error);
   margin: 0;
 }
 
 .btn-cancel {
   flex: 1;
   height: 2.5rem;
-  border: 1px solid rgba(28, 25, 23, 0.12);
+  border: 1px solid var(--border-strong);
   border-radius: 0.375rem;
-  background: white;
+  background: var(--bg-card);
   font-size: 0.9375rem;
-  color: #57534e;
+  color: var(--text-medium);
   cursor: pointer;
   transition:
     border-color 0.15s,
     background 0.15s;
 }
 .btn-cancel:hover {
-  background: #f5f4f2;
-  border-color: rgba(28, 25, 23, 0.2);
+  background: var(--bg-input-disabled);
+  border-color: var(--border-focus);
 }
 
 .btn-submit {
   flex: 1;
   height: 2.5rem;
-  background: #1c1917;
-  color: #fafaf9;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.9375rem;
@@ -723,10 +723,10 @@ const LEVEL_CONFIG = {
   transition: background 0.15s;
 }
 .btn-submit:hover:not(:disabled) {
-  background: #292524;
+  background: var(--btn-primary-hover);
 }
 .btn-submit:disabled {
-  background: #d6d3d1;
+  background: var(--btn-disabled-bg);
   cursor: not-allowed;
 }
 
@@ -738,7 +738,7 @@ const LEVEL_CONFIG = {
   gap: 0.5rem;
   padding: 2.5rem 0;
   font-size: 0.875rem;
-  color: #a8a29e;
+  color: var(--text-muted);
 }
 
 .icon {

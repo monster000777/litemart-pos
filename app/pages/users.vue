@@ -322,7 +322,7 @@ const submitResetPin = async () => {
 
       <button
         type="button"
-        class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-100 bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-100 bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
         @click="openCreateSheet"
       >
         <Plus class="h-4 w-4" />
@@ -574,7 +574,7 @@ const submitResetPin = async () => {
             </button>
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
               :disabled="submitting"
             >
               <LoaderCircle v-if="submitting" class="h-4 w-4 animate-spin" />
@@ -634,7 +634,7 @@ const submitResetPin = async () => {
             </button>
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
               :disabled="resetting"
             >
               <LoaderCircle v-if="resetting" class="h-4 w-4 animate-spin" />
@@ -699,7 +699,7 @@ const submitResetPin = async () => {
             </button>
             <button
               type="submit"
-              class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:opacity-60"
               :disabled="submitting || !editForm.phone.trim()"
             >
               <LoaderCircle v-if="submitting" class="h-4 w-4 animate-spin" />

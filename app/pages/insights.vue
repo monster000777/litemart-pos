@@ -4,6 +4,7 @@ import Skeleton from '~/components/ui/skeleton/Skeleton.vue'
 import type { InsightsOverviewDto, InsightsStatsDto } from '~/types/insights'
 
 const { getApiErrorMessage, removeKnownPrefix } = useApiError()
+const theme = useThemeStore()
 
 const { data: overview, pending: overviewPending } = await useAsyncData('insights-overview', () =>
   $fetch<InsightsOverviewDto>('/api/insights/overview')
@@ -96,6 +97,18 @@ const areaPath = computed(() => {
 // --- Top Products ---
 const topProducts = computed(() => stats.value?.topProducts ?? [])
 const maxTopQuantity = computed(() => Math.max(...topProducts.value.map((p) => p.quantity), 1))
+
+const chartAreaColor = computed(() =>
+  theme.resolved === 'dark' ? 'rgb(129 140 248)' : 'rgb(15 23 42)'
+)
+const chartLineColor = computed(() =>
+  theme.resolved === 'dark' ? 'rgb(165 180 252)' : 'rgb(15 23 42)'
+)
+const topBarClass = computed(() =>
+  theme.resolved === 'dark'
+    ? 'bg-indigo-400 group-hover:bg-indigo-300'
+    : 'bg-indigo-500 group-hover:bg-indigo-600'
+)
 
 // --- AI Summary Logic (module-level singleton, survives route changes) ---
 const { aiSummary, aiPending, aiError, fetchAiSummary, handleRefreshAiSummary } = useAiSummary()
@@ -214,21 +227,29 @@ onMounted(async () => {
         <div v-else class="space-y-3">
           <svg
             :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-            class="h-[260px] w-full rounded-2xl bg-zinc-50/40"
+            class="h-[260px] w-full rounded-2xl bg-zinc-50/40 dark:bg-zinc-800/70"
             preserveAspectRatio="none"
           >
             <defs>
               <linearGradient id="sales-area-gradient" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stop-color="rgb(15 23 42)" stop-opacity="0.12" />
-                <stop offset="100%" stop-color="rgb(15 23 42)" stop-opacity="0.01" />
+                <stop
+                  offset="0%"
+                  :stop-color="chartAreaColor"
+                  :stop-opacity="theme.resolved === 'dark' ? 0.28 : 0.12"
+                />
+                <stop
+                  offset="100%"
+                  :stop-color="chartAreaColor"
+                  :stop-opacity="theme.resolved === 'dark' ? 0.05 : 0.01"
+                />
               </linearGradient>
             </defs>
             <path :d="areaPath" fill="url(#sales-area-gradient)" />
             <path
               :d="linePath"
               fill="none"
-              stroke="rgb(15 23 42)"
-              stroke-width="1.2"
+              :stroke="chartLineColor"
+              :stroke-width="theme.resolved === 'dark' ? 1.6 : 1.2"
               stroke-linecap="round"
             />
           </svg>
@@ -273,7 +294,8 @@ onMounted(async () => {
             </div>
             <div class="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
               <div
-                class="h-full bg-indigo-500 rounded-full transition-all duration-500 group-hover:bg-indigo-600"
+                class="h-full rounded-full transition-all duration-500"
+                :class="topBarClass"
                 :style="{ width: `${(item.quantity / maxTopQuantity) * 100}%` }"
               ></div>
             </div>

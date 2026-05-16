@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Eye, EyeOff, LoaderCircle } from 'lucide-vue-next'
+import ThemeToggle from '~/components/ThemeToggle.vue'
 import { AUTH_PASSWORD_MAX_LENGTH, AUTH_PASSWORD_MIN_LENGTH } from '~~/shared/constants/auth'
 import type { UserRole } from '~~/shared/constants/rbac'
 
@@ -274,6 +275,10 @@ onUnmounted(() => {
 
 <template>
   <div class="login-root" :class="leaving ? 'fading' : ''">
+    <div class="login-theme-toggle">
+      <ThemeToggle compact class="justify-center px-2.5" />
+    </div>
+
     <!-- 左侧氛围区 -->
     <div class="scene-panel">
       <div class="scene-image" />
@@ -582,6 +587,7 @@ onUnmounted(() => {
 .login-root {
   display: flex;
   min-height: 100vh;
+  position: relative;
   transition: opacity 0.25s ease;
 }
 .login-root.fading {
@@ -672,7 +678,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fafaf9;
+  background: var(--bg-page);
   padding: 2rem 2.5rem;
 }
 
@@ -680,6 +686,13 @@ onUnmounted(() => {
   width: 100%;
   max-width: 320px;
   animation: form-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-theme-toggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 10;
 }
 
 @keyframes form-in {
@@ -701,14 +714,14 @@ onUnmounted(() => {
 .heading-title {
   font-size: 1.375rem;
   font-weight: 600;
-  color: #1c1917;
+  color: var(--text-primary);
   letter-spacing: -0.01em;
   margin: 0 0 0.375rem;
 }
 
 .heading-sub {
   font-size: 0.8125rem;
-  color: #78716c;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -722,19 +735,19 @@ onUnmounted(() => {
   border: 1px solid;
 }
 .msg-warn {
-  background: #fefce8;
-  border-color: #fde68a;
-  color: #92400e;
+  background: var(--bg-warn);
+  border-color: var(--border-warn);
+  color: var(--color-warn);
 }
 .msg-error {
-  background: #fff1f2;
-  border-color: #fecdd3;
-  color: #be123c;
+  background: var(--bg-error);
+  border-color: var(--border-error);
+  color: var(--color-error);
 }
 .msg-info {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #15803d;
+  background: var(--bg-success);
+  border-color: var(--border-success);
+  color: var(--color-success);
 }
 
 /* 字段 */
@@ -753,11 +766,11 @@ onUnmounted(() => {
 .field-input {
   width: 100%;
   padding: 0.75rem 0.875rem;
-  border: 1px solid rgba(28, 25, 23, 0.08);
+  border: 1px solid var(--border-default);
   border-radius: 0.375rem;
   font-size: 0.9375rem;
-  color: #1c1917;
-  background: white;
+  color: var(--text-primary);
+  background: var(--bg-input);
   outline: none;
   transition:
     border-color 0.15s,
@@ -765,16 +778,16 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 .field-input:focus {
-  border-color: rgba(28, 25, 23, 0.2);
-  box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.04);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--ring-focus);
 }
 .field-input:disabled {
-  background: #f5f4f2;
-  color: #a8a29e;
+  background: var(--bg-input-disabled);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 .field-input::placeholder {
-  color: #a8a29e;
+  color: var(--text-muted);
 }
 
 /* Password */
@@ -792,14 +805,14 @@ onUnmounted(() => {
   background: none;
   border: none;
   cursor: pointer;
-  color: #a8a29e;
+  color: var(--text-muted);
   padding: 0;
   display: flex;
   align-items: center;
   transition: color 0.15s;
 }
 .pin-toggle:hover:not(:disabled) {
-  color: #78716c;
+  color: var(--text-secondary);
 }
 .pin-toggle:disabled {
   cursor: not-allowed;
@@ -809,8 +822,8 @@ onUnmounted(() => {
 .btn-primary {
   width: 100%;
   height: 2.75rem;
-  background: #1c1917;
-  color: #fafaf9;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   border: none;
   border-radius: 0.375rem;
   font-size: 0.9375rem;
@@ -826,14 +839,14 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
 }
 .btn-primary:hover:not(:disabled) {
-  background: #292524;
+  background: var(--btn-primary-hover);
 }
 .btn-primary:active:not(:disabled) {
   transform: scale(0.99);
 }
 .btn-primary:disabled {
-  background: #d6d3d1;
-  color: #fafaf9;
+  background: var(--btn-disabled-bg);
+  color: var(--btn-primary-text);
   cursor: not-allowed;
 }
 
@@ -849,12 +862,12 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   font-size: 0.8125rem;
-  color: #a8a29e;
+  color: var(--text-muted);
   padding: 0;
   transition: color 0.15s;
 }
 .link-btn:hover {
-  color: #78716c;
+  color: var(--text-secondary);
 }
 .link-btn-arrow {
   display: flex;
@@ -896,12 +909,12 @@ onUnmounted(() => {
   flex-shrink: 0;
   height: 2.625rem;
   padding: 0 0.875rem;
-  border: 1px solid rgba(28, 25, 23, 0.12);
+  border: 1px solid var(--border-strong);
   border-radius: 0.375rem;
-  background: white;
+  background: var(--bg-input);
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #57534e;
+  color: var(--text-medium);
   cursor: pointer;
   transition:
     border-color 0.15s,
@@ -910,9 +923,9 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .otp-btn:hover:not(:disabled) {
-  border-color: rgba(28, 25, 23, 0.25);
-  color: #1c1917;
-  background: #fafaf9;
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+  background: var(--bg-page);
 }
 .otp-btn:disabled {
   opacity: 0.45;
@@ -921,6 +934,11 @@ onUnmounted(() => {
 
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
+  .login-theme-toggle {
+    top: 1rem;
+    right: 1rem;
+  }
+
   .scene-panel {
     display: none;
   }

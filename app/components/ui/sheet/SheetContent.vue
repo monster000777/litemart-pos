@@ -24,19 +24,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc))
     <Transition name="sheet-fade">
       <div
         v-if="open"
-        class="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
+        class="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px] dark:bg-black/40"
         @click="setOpen(false)"
       />
     </Transition>
     <Transition name="sheet-slide">
       <aside
         v-if="open"
-        class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-100 bg-white shadow-[0_16px_48px_rgba(15,23,42,0.12)]"
+        class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-100 bg-white shadow-[0_16px_48px_rgba(15,23,42,0.12)] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-[0_16px_48px_rgba(0,0,0,0.35)]"
       >
         <div class="relative flex-1 overflow-y-auto p-8">
           <button
             type="button"
-            class="sticky top-0 float-right rounded-md p-1 text-slate-400 transition hover:bg-zinc-50 hover:text-slate-700 z-10"
+            class="sticky top-0 z-10 float-right rounded-md p-1 text-slate-400 transition hover:bg-zinc-50 hover:text-slate-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             @click="setOpen(false)"
           >
             <X class="h-4 w-4" />

@@ -14,8 +14,8 @@ const { toasts, dismiss } = useToast()
           class="pointer-events-auto rounded-xl border px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
           :class="
             item.variant === 'success'
-              ? 'border-emerald-100 bg-emerald-50 text-emerald-900'
-              : 'border-rose-100 bg-rose-50 text-rose-900'
+              ? 'border-emerald-100 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/80 dark:text-emerald-300'
+              : 'border-rose-100 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950/80 dark:text-rose-300'
           "
         >
           <div class="flex items-start gap-3">
@@ -27,7 +27,7 @@ const { toasts, dismiss } = useToast()
             </div>
             <button
               type="button"
-              class="rounded-md p-0.5 opacity-60 transition hover:bg-white/50 hover:opacity-100"
+              class="rounded-md p-0.5 opacity-60 transition hover:bg-white/50 hover:opacity-100 dark:hover:bg-zinc-800/80"
               @click="dismiss(item.id)"
             >
               <X class="h-3.5 w-3.5" />
