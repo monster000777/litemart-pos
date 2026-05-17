@@ -9,6 +9,7 @@
 - 会员、积分、会员价
 - 用户、角色权限、审计日志
 - AI 经营分析与智能客服会话持久化
+- `uni-app` 小程序端前台 MVP
 
 ---
 
@@ -101,6 +102,14 @@ npm test
 npm run build
 ```
 
+### 小程序端开发
+
+```bash
+cd miniapp
+npm install
+npm run dev:mp-weixin
+```
+
 ---
 
 ## 常用命令
@@ -135,6 +144,13 @@ npm run prisma:seed
 ```bash
 npm test
 npm run test:watch
+```
+
+### 小程序端
+
+```bash
+npm run lint:miniapp
+npm run lint:miniapp:fix
 ```
 
 ### 其他脚本
@@ -195,6 +211,12 @@ npm run prisma:seed
 - 智能客服会话管理
 - 聊天会话与消息持久化到数据库
 
+### 小程序端
+
+- 基于 `uni-app + Vue 3 + Pinia`
+- 已支持登录、商品浏览、购物车、会员识别、积分抵扣、下单、订单查询
+- 小程序端说明见 [miniapp/README.md](miniapp/README.md)
+
 ---
 
 ## 测试说明
@@ -231,6 +253,7 @@ shared/               前后端共享常量
 scripts/              辅助脚本与检查脚本
 tests/unit/           单元测试
 public/               静态资源与上传文件
+miniapp/              小程序端独立工程
 ```
 
 ---
