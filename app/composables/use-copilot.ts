@@ -16,6 +16,7 @@ export interface CopilotSession {
   title: string
   updatedAt: number
   messages: CopilotMessage[]
+  messageCount?: number
   pending: boolean
   isLocal?: boolean
 }
@@ -29,7 +30,13 @@ const activeSessionId = ref<string>('')
 const chatInput = ref('')
 
 const mapRemoteSession = <
-  T extends { id: string; title: string; updatedAt: number; messages?: CopilotMessage[] }
+  T extends {
+    id: string
+    title: string
+    updatedAt: number
+    messages?: CopilotMessage[]
+    messageCount?: number
+  }
 >(
   session: T
 ): CopilotSession => ({
@@ -37,9 +44,13 @@ const mapRemoteSession = <
   title: session.title,
   updatedAt: session.updatedAt,
   messages: session.messages || [],
+  messageCount: session.messageCount ?? session.messages?.length ?? 0,
   pending: false,
   isLocal: false
 })
+
+const isDraftSession = (session: CopilotSession) =>
+  (session.messageCount ?? session.messages.length) === 0
 
 export function useCopilot() {
   const activeSession = computed(() =>
@@ -56,6 +67,7 @@ export function useCopilot() {
       title: session.title,
       updatedAt: session.updatedAt,
       messages: session.messages,
+      messageCount: session.messageCount ?? session.messages.length,
       isLocal: session.isLocal ?? false
     }))
     localStorage.setItem('litemart-copilot-sessions', JSON.stringify(serializable))
@@ -132,6 +144,7 @@ export function useCopilot() {
 
       session.id = created.id
       session.updatedAt = created.updatedAt
+      session.messageCount = 0
       session.isLocal = false
 
       if (session.title !== DEFAULT_SESSION_TITLE) {
@@ -152,9 +165,11 @@ export function useCopilot() {
   }
 
   const createNewSession = async () => {
-    const emptySession = sessions.value.find((session) => session.messages.length === 0)
-    if (emptySession) {
-      activeSessionId.value = emptySession.id
+    const draftSession = sessions.value.find(
+      (session) => isDraftSession(session) && !session.pending
+    )
+    if (draftSession) {
+      activeSessionId.value = draftSession.id
       return
     }
 
@@ -172,6 +187,7 @@ export function useCopilot() {
         title: DEFAULT_SESSION_TITLE,
         updatedAt: Date.now(),
         messages: [],
+        messageCount: 0,
         pending: false,
         isLocal: true
       })
@@ -194,7 +210,7 @@ export function useCopilot() {
       } else {
         const next = sessions.value[0]
         activeSessionId.value = next.id
-        if (!next.isLocal && next.messages.length === 0) {
+        if (!next.isLocal && isDraftSession(next)) {
           const detail = await loadSessionDetail(next.id)
           if (detail) {
             const nextIdx = sessions.value.findIndex((session) => session.id === next.id)
@@ -224,6 +240,7 @@ export function useCopilot() {
     }
 
     session.messages = []
+    session.messageCount = 0
     session.title = DEFAULT_SESSION_TITLE
     session.updatedAt = Date.now()
     chatInput.value = ''
@@ -234,6 +251,7 @@ export function useCopilot() {
       await $fetch(`/api/chat-sessions/${session.id}/messages`, { method: 'DELETE' })
     } catch {
       session.messages = snapshot.messages
+      session.messageCount = snapshot.messages.length
       session.title = snapshot.title
       session.updatedAt = snapshot.updatedAt
     }
@@ -267,6 +285,7 @@ export function useCopilot() {
     }
 
     session.messages.push({ role: 'user', content: normalizedText })
+    session.messageCount = session.messages.length
     session.updatedAt = Date.now()
     chatInput.value = ''
     session.pending = true
@@ -288,6 +307,7 @@ export function useCopilot() {
       })
 
       session.messages.push({ role: 'assistant', content: res.reply })
+      session.messageCount = session.messages.length
       session.updatedAt = Date.now()
 
       if (isFirstMessage && sessionId) {
