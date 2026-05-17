@@ -8,6 +8,8 @@
     "generate": "nuxt generate",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:miniapp": "eslint miniapp/src",
+    "lint:miniapp:fix": "eslint miniapp/src --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "preview": "nuxt preview",

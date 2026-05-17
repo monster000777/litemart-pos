@@ -36,7 +36,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const token = getCookie(event, AUTH_COOKIE_NAME)
+  const authHeader = getRequestHeader(event, 'authorization')
+  const bearerToken =
+    typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : ''
+  const token = bearerToken || getCookie(event, AUTH_COOKIE_NAME)
   const session = verifySessionToken(token, authSecret)
 
   if (!session) {

@@ -6,7 +6,16 @@ import vueParser from 'vue-eslint-parser'
 
 export default tseslint.config(
   {
-    ignores: ['.nuxt/**', '.output/**', 'dist/**', 'coverage/**', 'node_modules/**']
+    ignores: [
+      '.nuxt/**',
+      '.output/**',
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'miniapp/dist/**',
+      'miniapp/unpackage/**',
+      'miniapp/node_modules/**'
+    ]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

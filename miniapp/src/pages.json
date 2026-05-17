@@ -1,0 +1,72 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "\u767b\u5f55",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationBarTitleText": "\u95e8\u5e97\u9009\u8d2d"
+      }
+    },
+    {
+      "path": "pages/cart/index",
+      "style": {
+        "navigationBarTitleText": "\u8d2d\u7269\u8f66"
+      }
+    },
+    {
+      "path": "pages/orders/index",
+      "style": {
+        "navigationBarTitleText": "\u8ba2\u5355\u8bb0\u5f55"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "\u6211\u7684"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#746150",
+    "selectedColor": "#8c4317",
+    "backgroundColor": "#f8efe2",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "\u70b9\u5355",
+        "iconPath": "static/tab/order.png",
+        "selectedIconPath": "static/tab/order-active.png"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "\u8d2d\u7269\u8f66",
+        "iconPath": "static/tab/cart.png",
+        "selectedIconPath": "static/tab/cart-active.png"
+      },
+      {
+        "pagePath": "pages/orders/index",
+        "text": "\u8ba2\u5355",
+        "iconPath": "static/tab/bill.png",
+        "selectedIconPath": "static/tab/bill-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "\u6211\u7684",
+        "iconPath": "static/tab/user.png",
+        "selectedIconPath": "static/tab/user-active.png"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#fbf4ea",
+    "backgroundColor": "#f4eadb"
+  }
+}

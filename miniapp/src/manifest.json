@@ -1,0 +1,17 @@
+{
+  "name": "LiteMart POS Mini",
+  "appid": "__UNI__LITEMARTPOS",
+  "description": "LiteMart POS 微信小程序端",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "usingComponents": true
+  }
+}

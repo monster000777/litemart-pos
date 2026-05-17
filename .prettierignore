@@ -1,7 +1,11 @@
 .nuxt
 .output
 dist
+miniapp/dist
+miniapp/unpackage
+miniapp/.hbuilderx
 coverage
 node_modules
+miniapp/node_modules
 package-lock.json
 *.log

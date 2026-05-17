@@ -1,0 +1,40 @@
+$lm-bg: #f4eadb;
+$lm-bg-deep: #ead8bf;
+$lm-surface: rgba(255, 250, 242, 0.82);
+$lm-panel: #fffaf2;
+$lm-panel-strong: #fffdf9;
+$lm-primary: #a9521b;
+$lm-primary-deep: #5f2b0e;
+$lm-accent: #d6a258;
+$lm-ink: #22150d;
+$lm-subtle: #786554;
+$lm-border: rgba(104, 54, 19, 0.1);
+$lm-border-strong: rgba(104, 54, 19, 0.18);
+$lm-danger: #a23b30;
+$lm-shadow: 0 18rpx 48rpx rgba(90, 45, 16, 0.08);
+$lm-shadow-soft: 0 10rpx 24rpx rgba(90, 45, 16, 0.05);
+$lm-radius-xl: 34rpx;
+$lm-radius-lg: 26rpx;
+$lm-radius-pill: 999rpx;
+
+:root,
+page {
+  --lm-bg: #{$lm-bg};
+  --lm-bg-deep: #{$lm-bg-deep};
+  --lm-surface: #{$lm-surface};
+  --lm-panel: #{$lm-panel};
+  --lm-panel-strong: #{$lm-panel-strong};
+  --lm-primary: #{$lm-primary};
+  --lm-primary-deep: #{$lm-primary-deep};
+  --lm-accent: #{$lm-accent};
+  --lm-ink: #{$lm-ink};
+  --lm-subtle: #{$lm-subtle};
+  --lm-border: #{$lm-border};
+  --lm-border-strong: #{$lm-border-strong};
+  --lm-danger: #{$lm-danger};
+  --lm-shadow: #{$lm-shadow};
+  --lm-shadow-soft: #{$lm-shadow-soft};
+  --lm-radius-xl: #{$lm-radius-xl};
+  --lm-radius-lg: #{$lm-radius-lg};
+  --lm-radius-pill: #{$lm-radius-pill};
+}

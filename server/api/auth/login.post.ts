@@ -156,7 +156,13 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      role: user.role
+      role: user.role,
+      token,
+      expiresIn: AUTH_MAX_AGE_SECONDS,
+      user: {
+        uid: user.uid,
+        phone: user.phone
+      }
     }
   } catch (error) {
     if (error instanceof H3Error) {

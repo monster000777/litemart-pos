@@ -5,9 +5,13 @@
 .nitro
 .cache
 dist
+miniapp/dist
+miniapp/unpackage
+miniapp/.hbuilderx
 
 # Node dependencies
 node_modules
+miniapp/node_modules
 
 # Logs
 logs
