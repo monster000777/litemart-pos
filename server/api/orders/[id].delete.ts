@@ -1,11 +1,7 @@
 import { H3Error } from 'h3'
 import { prisma } from '~~/server/lib/prisma'
-import { writeAuditLog } from '~~/server/services/audit-service'
+import { writeAuditLog, AUDIT_ACTIONS } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
-
-const AUDIT_ACTIONS = {
-  DELETE: 'DELETE'
-} as const
 
 export default defineEventHandler(async (event) => {
   const orderId = getRouterParam(event, 'id')
@@ -36,7 +32,7 @@ export default defineEventHandler(async (event) => {
     })
 
     await writeAuditLog(
-      AUDIT_ACTIONS.DELETE,
+      AUDIT_ACTIONS.ORDER_DELETE,
       `删除订单 ${order.orderNo}，金额 ￥${Number(order.totalAmount).toFixed(2)}，含 ${order.items.length} 个商品`,
       getClientIp(event)
     )

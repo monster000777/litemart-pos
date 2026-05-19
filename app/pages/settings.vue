@@ -34,7 +34,7 @@ const initialUid = ref('')
 
 onMounted(async () => {
   try {
-    const session = await $fetch('/api/auth/session')
+    const session = await $fetch<{ user?: { uid: string; phone: string } }>('/api/auth/session')
     profileForm.uid = session.user?.uid || ''
     profileForm.phone = session.user?.phone || ''
     initialUid.value = profileForm.uid

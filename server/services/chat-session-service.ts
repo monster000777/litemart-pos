@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Prisma, PrismaClient } from '@prisma/client'
 import { createError } from 'h3'
 
@@ -13,7 +14,7 @@ export const buildChatSessionTitle = (question: string) => {
   return normalized.slice(0, 15) + (normalized.length > 15 ? '...' : '')
 }
 
-const ensureUserId = (userId?: string | null) => {
+function ensureUserId(userId?: string | null | undefined): asserts userId is string {
   if (!userId) {
     throw createError({ statusCode: 401, message: '未登录' })
   }
@@ -22,11 +23,11 @@ const ensureUserId = (userId?: string | null) => {
 export const requireOwnedChatSession = async (
   db: ChatDbClient,
   sessionId: string,
-  userId?: string | null
+  userId?: string | null | undefined
 ) => {
   ensureUserId(userId)
 
-  const session = await db.chatSession.findFirst({
+  const session = await (db as any).chatSession.findFirst({
     where: { id: sessionId, userId },
     select: {
       id: true,
@@ -43,10 +44,10 @@ export const requireOwnedChatSession = async (
   return session
 }
 
-export const listChatSessions = async (db: ChatDbClient, userId?: string | null) => {
+export const listChatSessions = async (db: ChatDbClient, userId?: string | null | undefined) => {
   ensureUserId(userId)
 
-  const sessions = await db.chatSession.findMany({
+  const sessions = await (db as any).chatSession.findMany({
     where: { userId },
     orderBy: { updatedAt: 'desc' },
     select: {
@@ -57,18 +58,18 @@ export const listChatSessions = async (db: ChatDbClient, userId?: string | null)
     }
   })
 
-  return sessions.map((session) => ({
+  return sessions.map((session: any) => ({
     id: session.id,
     title: session.title,
     updatedAt: session.updatedAt.getTime(),
-    messageCount: session._count.messages
+    messageCount: session._count?.messages || 0
   }))
 }
 
-export const createChatSession = async (db: ChatDbClient, userId?: string | null) => {
+export const createChatSession = async (db: ChatDbClient, userId?: string | null | undefined) => {
   ensureUserId(userId)
 
-  const session = await db.chatSession.create({
+  const session = await (db as any).chatSession.create({
     data: {
       userId,
       title: DEFAULT_CHAT_SESSION_TITLE
@@ -86,11 +87,11 @@ export const createChatSession = async (db: ChatDbClient, userId?: string | null
 export const getChatSessionDetail = async (
   db: ChatDbClient,
   sessionId: string,
-  userId?: string | null
+  userId?: string | null | undefined
 ) => {
   ensureUserId(userId)
 
-  const session = await db.chatSession.findFirst({
+  const session = await (db as any).chatSession.findFirst({
     where: { id: sessionId, userId },
     include: {
       messages: {
@@ -108,7 +109,7 @@ export const getChatSessionDetail = async (
     id: session.id,
     title: session.title,
     updatedAt: session.updatedAt.getTime(),
-    messages: session.messages.map((message) => ({
+    messages: session.messages.map((message: any) => ({
       id: message.id,
       role: message.role as 'user' | 'assistant',
       content: message.content
@@ -120,12 +121,12 @@ export const renameChatSession = async (
   db: ChatDbClient,
   sessionId: string,
   userId: string | null | undefined,
-  title?: string
+  title: string
 ) => {
   const session = await requireOwnedChatSession(db, sessionId, userId)
   const nextTitle = title?.trim() || session.title
 
-  const updated = await db.chatSession.update({
+  const updated = await (db as any).chatSession.update({
     where: { id: sessionId },
     data: { title: nextTitle }
   })
@@ -139,21 +140,21 @@ export const renameChatSession = async (
 export const deleteChatSession = async (
   db: ChatDbClient,
   sessionId: string,
-  userId?: string | null
+  userId?: string | null | undefined
 ) => {
   await requireOwnedChatSession(db, sessionId, userId)
-  await db.chatSession.delete({ where: { id: sessionId } })
+  await (db as any).chatSession.delete({ where: { id: sessionId } })
   return { success: true }
 }
 
-export const clearChatSessionMessages = async (
+export const clearChatSession = async (
   db: ChatDbClient,
   sessionId: string,
-  userId?: string | null
+  userId?: string | null | undefined
 ) => {
   ensureUserId(userId)
 
-  await db.$transaction(async (tx) => {
+  await (db as any).$transaction(async (tx: any) => {
     await requireOwnedChatSession(tx, sessionId, userId)
     await tx.chatMessage.deleteMany({ where: { sessionId } })
     await tx.chatSession.update({
@@ -188,15 +189,15 @@ export const appendChatMessage = async (
 
   await requireOwnedChatSession(db, sessionId, userId)
 
-  const [message] = await db.$transaction([
-    db.chatMessage.create({
+  const [message] = await (db as any).$transaction([
+    (db as any).chatMessage.create({
       data: {
         sessionId,
         role: normalizedRole,
         content: normalizedContent
       }
     }),
-    db.chatSession.update({
+    (db as any).chatSession.update({
       where: { id: sessionId },
       data: { updatedAt: new Date() }
     })
@@ -222,7 +223,7 @@ export const persistChatExchange = async (
     throw createError({ statusCode: 400, message: '消息内容不能为空' })
   }
 
-  await db.$transaction(async (tx) => {
+  await (db as any).$transaction(async (tx: any) => {
     const session = await requireOwnedChatSession(tx, sessionId, userId)
 
     await tx.chatMessage.create({
@@ -236,7 +237,9 @@ export const persistChatExchange = async (
       where: { id: sessionId },
       data: {
         title:
-          session._count.messages === 0 ? buildChatSessionTitle(normalizedQuestion) : session.title,
+          (session as any)._count?.messages === 0
+            ? buildChatSessionTitle(normalizedQuestion)
+            : session.title,
         updatedAt: new Date()
       }
     })

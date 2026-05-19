@@ -29,7 +29,7 @@ const modeLabelMap: Record<ThemeMode, string> = {
 const cycleTheme = () => {
   const currentIndex = modes.indexOf(currentMode.value)
   const nextMode = modes[(currentIndex + 1) % modes.length]
-  theme.setMode(nextMode)
+  theme.setMode(nextMode as ThemeMode)
 }
 
 onMounted(() => {

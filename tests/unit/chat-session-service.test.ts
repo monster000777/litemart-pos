@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   appendChatMessage,
   buildChatSessionTitle,
-  clearChatSessionMessages,
+  clearChatSession,
   createChatSession,
   deleteChatSession,
   getChatSessionDetail,
@@ -199,7 +199,7 @@ describe('chat-session-service', () => {
       $transaction: vi.fn().mockImplementation((runner: (arg: typeof tx) => unknown) => runner(tx))
     } as unknown as ChatDb
 
-    await expect(clearChatSessionMessages(db, 'session-1', 'user-1')).resolves.toEqual({
+    await expect(clearChatSession(db, 'session-1', 'user-1')).resolves.toEqual({
       id: 'session-1',
       title: getDefaultChatSessionTitle(),
       messages: []

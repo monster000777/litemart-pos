@@ -106,7 +106,7 @@ export function useCopilot() {
     try {
       const list = await syncSessionsFromDb()
 
-      if (list.length > 0) {
+      if (list.length > 0 && list[0]) {
         const firstSession = await loadSessionDetail(list[0].id)
         if (firstSession) {
           sessions.value = list.map((session) =>
@@ -209,12 +209,14 @@ export function useCopilot() {
         await createNewSession()
       } else {
         const next = sessions.value[0]
-        activeSessionId.value = next.id
-        if (!next.isLocal && isDraftSession(next)) {
-          const detail = await loadSessionDetail(next.id)
-          if (detail) {
-            const nextIdx = sessions.value.findIndex((session) => session.id === next.id)
-            if (nextIdx !== -1) sessions.value[nextIdx] = detail
+        if (next) {
+          activeSessionId.value = next.id
+          if (!next.isLocal && isDraftSession(next)) {
+            const detail = await loadSessionDetail(next.id)
+            if (detail) {
+              const nextIdx = sessions.value.findIndex((session) => session.id === next?.id)
+              if (nextIdx !== -1) sessions.value[nextIdx] = detail
+            }
           }
         }
       }

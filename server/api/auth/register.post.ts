@@ -10,7 +10,7 @@ import {
 import { AUTH_COOKIE_NAME, AUTH_MAX_AGE_SECONDS } from '~~/shared/constants/auth'
 import { AUDIT_ACTIONS, writeAuditLog } from '~~/server/services/audit-service'
 import { getClientIp } from '~~/server/utils/request'
-import { USER_ROLES } from '~~/shared/constants/rbac'
+import { USER_ROLES, type UserRole } from '~~/shared/constants/rbac'
 
 type RegisterBody = {
   phone?: string
@@ -93,7 +93,7 @@ export default defineEventHandler(async (event) => {
     const existingConfig = await getAuthConfig()
     const userCount = await countAuthUsers()
 
-    let finalRole = USER_ROLES.CASHIER
+    let finalRole: UserRole = USER_ROLES.CASHIER
 
     if (userCount === 0) {
       // 首次初始化，不需要邀请码，直接注册为 ADMIN

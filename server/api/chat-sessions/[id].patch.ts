@@ -9,5 +9,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: '会话 ID 不能为空' })
   }
 
-  return renameChatSession(prisma, id, event.context.auth?.user?.id, body.title)
+  return renameChatSession(prisma, id, event.context.auth?.user?.id, body.title || '')
 })

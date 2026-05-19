@@ -25,9 +25,13 @@ export default defineEventHandler(async (event) => {
     const category = body.category?.trim()
     const price = Number(body.price)
     const memberPrice =
-      body.memberPrice === null || body.memberPrice === undefined || body.memberPrice === ''
+      body.memberPrice === null ||
+      body.memberPrice === undefined ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (body.memberPrice as any) === ''
         ? null
         : Number(body.memberPrice)
+
     const stock = Math.floor(Number(body.stock))
     const minStock = Math.floor(Number(body.minStock))
 

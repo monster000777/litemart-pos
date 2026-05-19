@@ -164,7 +164,7 @@ export default defineEventHandler(async (event) => {
     limiter.reset(clientIp)
 
     await writeAuditLog(
-      AUDIT_ACTIONS.PIN_RESET,
+      AUDIT_ACTIONS.RESET_PIN,
       `重置了 ${user.uid} (${user.phone}) 的密码`,
       clientIp
     )

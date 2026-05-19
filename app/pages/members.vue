@@ -83,7 +83,8 @@ const submitForm = async () => {
   try {
     if (isEditMode.value) {
       await $fetch(`/api/customers/${editingId.value}`, {
-        method: 'PATCH',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        method: 'PATCH' as any,
         body: {
           name: form.name,
           level: form.level
@@ -122,7 +123,8 @@ const cancelDelete = () => {
 const removeMember = async (member: MemberDto) => {
   const wasEditing = editingId.value === member.id
   try {
-    await $fetch(`/api/customers/${member.id}`, { method: 'DELETE' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await $fetch(`/api/customers/${member.id}`, { method: 'DELETE' as any })
     toast({ title: '会员已删除', variant: 'success', duration: 2500 })
     await refresh()
     deletingId.value = null
@@ -133,11 +135,11 @@ const removeMember = async (member: MemberDto) => {
   }
 }
 
-const LEVEL_CONFIG = {
+const LEVEL_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   NORMAL: { label: '普通', color: 'var(--text-secondary)', bg: 'var(--bg-input-disabled)' },
   SILVER: { label: '白银', color: '#64748b', bg: '#f1f5f9' },
   GOLD: { label: '黄金', color: '#b45309', bg: '#fef3c7' }
-} as const
+}
 </script>
 
 <template>
@@ -214,11 +216,11 @@ const LEVEL_CONFIG = {
                   <span
                     class="level-badge"
                     :style="{
-                      color: LEVEL_CONFIG[member.level].color,
-                      background: LEVEL_CONFIG[member.level].bg
+                      color: ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).color,
+                      background: ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).bg
                     }"
                   >
-                    {{ LEVEL_CONFIG[member.level].label }}
+                    {{ ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).label }}
                   </span>
                 </div>
                 <p class="member-phone">{{ member.phone }}</p>
