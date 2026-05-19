@@ -154,6 +154,37 @@ docker compose up -d --build
 - **进入容器检查**：`docker exec -it litemart-pos sh`
 - **重置数据库**：`docker compose down -v` (注意：这将删除所有持久化数据)
 
+---
+
+## CI/CD 与 GitHub Packages (GHCR)
+
+项目已集成 GitHub Actions，支持代码推送后自动构建 Docker 镜像并发布到 GitHub Container Registry (GHCR)。
+
+### 1. 自动化流水线
+
+工作流配置位于 `.github/workflows/docker-publish.yml`，触发条件为：
+
+- 推送到 `main` 分支。
+- 发布以 `v` 开头的版本标签 (如 `v1.0.1`)。
+
+### 2. 权限配置
+
+为了让 GitHub Actions 能够推送镜像，请确保：
+
+- 在仓库设置中：`Settings -> Actions -> General -> Workflow permissions` 设置为 **Read and write permissions**。
+
+### 3. 生产环境拉取镜像
+
+在生产服务器上，您可以使用托管在 GHCR 的镜像而无需重新构建：
+
+```yaml
+# 生产环境示例：修改 docker-compose.yml 中的 image
+services:
+  app:
+    image: ghcr.io/<你的用户名>/litemart-pos:main
+    # ... 其他配置保持一致
+```
+
 ### 提交前检查
 
 ```bash

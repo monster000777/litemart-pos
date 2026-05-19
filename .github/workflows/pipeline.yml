@@ -1,0 +1,235 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+
+    tags: ['v*']
+  pull_request:
+    branches: [ "master" ]
+
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '20'
+
+jobs:
+  # 阶段 1: 代码检查
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint main app
+        run: npm run lint
+
+      - name: Lint miniapp
+        run: npm run lint:miniapp
+
+  # 阶段 2: 类型检查
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma
+        run: npm run prisma:generate
+
+      - name: Type check
+        run: npx nuxi typecheck
+
+  # 阶段 3: 单元测试
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma
+        run: npm run prisma:generate
+
+      - name: Run tests
+        run: npm test
+
+  # 阶段 4: 构建产物
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [nuxt, miniapp]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.target }}" = "miniapp" ]; then
+            cd miniapp && npm ci
+          else
+            npm ci
+          fi
+
+      - name: Build Nuxt app
+        if: matrix.target == 'nuxt'
+        run: |
+          npm run prisma:generate
+          npm run build
+
+      - name: Build miniapp
+        if: matrix.target == 'miniapp'
+        run: |
+          cd miniapp
+          npm run build:mp-weixin
+
+      - name: Upload Nuxt artifacts
+        if: matrix.target == 'nuxt'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuxt-dist
+          path: .output
+          retention-days: 7
+
+      - name: Upload miniapp artifacts
+        if: matrix.target == 'miniapp'
+        uses: actions/upload-artifact@v4
+        with:
+          name: miniapp-dist
+          path: miniapp/dist
+          retention-days: 7
+
+  # 阶段 5: Docker 镜像构建与推送
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Downcase IMAGE_NAME
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 根据官方手册增加：生成项目证明 (Artifact Attestation)
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  # 阶段 6: 部署 (占位，可根据需要配置 SSH 或 Vercel)
+  deploy:
+    name: Production Deploy
+    runs-on: ubuntu-latest
+    needs: docker
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+    steps:
+      - name: Deploy
+        run: |
+          echo "检测到新版本 Tag，触发生产环境部署逻辑..."
+          # 这里可以添加 SSH 部署脚本或调用 Webhook
+          # 示例：
+          # uses: appleboy/ssh-action@v1
+          # with:
+          #   host: ${{ secrets.SSH_HOST }}
+          #   username: ${{ secrets.SSH_USER }}
+          #   key: ${{ secrets.SSH_PRIVATE_KEY }}
+          #   script: cd /app && docker compose pull && docker compose up -d
+
+  # 失败通知示例 (可根据需要启用)
+  # notify:
+  #   name: Notify
+  #   runs-on: ubuntu-latest
+  #   needs: [docker, deploy]
+  #   if: failure()
+  #   steps:
+  #     - name: Slack/Feishu Notification
+  #       run: echo "发送失败通知..."
