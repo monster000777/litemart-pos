@@ -258,13 +258,14 @@ onUnmounted(() => {
               </p>
               <p class="text-xs text-slate-500">{{ formatDate(now) }}</p>
             </div>
-            <NuxtLink
-              to="/insights"
+            <button
+              type="button"
               class="inline-flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-4 py-2 text-sm text-slate-600 transition hover:bg-zinc-50 hover:text-slate-900"
+              @click="$router.back()"
             >
               <ArrowLeft class="h-4 w-4" />
-              返回看板
-            </NuxtLink>
+              返回
+            </button>
           </div>
         </div>
       </header>
