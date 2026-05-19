@@ -472,7 +472,7 @@ const exportInventoryCsv = () => {
             </button>
             <button
               type="submit"
-              class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:bg-slate-300"
+              class="rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:bg-[var(--btn-disabled-bg)]"
               :disabled="submitting || uploadingImage"
             >
               <LoaderCircle v-if="submitting" class="mx-auto h-4 w-4 animate-spin" />
