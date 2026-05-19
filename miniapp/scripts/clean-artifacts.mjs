@@ -1,3 +1,4 @@
+/* global console, process */
 import { rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -16,7 +17,7 @@ const artifactDirs = [
   'tmp',
   'temp',
   'node_modules/.cache'
-].map(dir => join(rootDir, dir))
+].map((dir) => join(rootDir, dir))
 
 const removed = []
 const errors = []
@@ -32,12 +33,10 @@ for (const dir of artifactDirs) {
 }
 
 if (removed.length > 0) {
-  console.log(`[clean] removed: ${removed.map(p => p.replace(rootDir, '.')).join(', ')}`)
+  console.log(`[clean] removed: ${removed.map((p) => p.replace(rootDir, '.')).join(', ')}`)
 }
 
 if (errors.length > 0) {
   console.warn(`[clean] warnings:\n  ${errors.join('\n  ')}`)
   process.exit(1)
 }
-
-

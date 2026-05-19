@@ -22,8 +22,13 @@ const joinUrl = (path: string) => {
   }
 
   const baseUrl = String(appConfig.baseUrl || '')
+    .trim()
     .replace(/\/+$/, '')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
+  if (!baseUrl) {
+    return normalizedPath
+  }
 
   return `${baseUrl}${normalizedPath}`
 }
@@ -89,6 +94,7 @@ export const request = <T>(options: RequestOptions) =>
         const payload = data as { message?: string; statusMessage?: string }
         if (statusCode === 401) {
           handleUnauthorized()
+          return
         }
 
         reject({

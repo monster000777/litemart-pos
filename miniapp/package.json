@@ -7,7 +7,6 @@
     "dev:h5:lan": "uni --mode dev-lan",
     "dev:mp-weixin": "uni -p mp-weixin --mode dev-lan",
     "dev:mp-weixin:lan": "uni -p mp-weixin --mode dev-lan",
-    "build:custom": "uni build -p",
     "build:h5": "uni build --mode production",
     "build:mp-weixin": "uni build -p mp-weixin --mode production",
     "clean": "node scripts/clean-artifacts.mjs"
