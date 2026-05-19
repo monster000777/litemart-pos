@@ -156,34 +156,42 @@ docker compose up -d --build
 
 ---
 
-## CI/CD 与 GitHub Packages (GHCR)
+## CI/CD 与版本发布
 
-项目已集成 GitHub Actions，支持代码推送后自动构建 Docker 镜像并发布到 GitHub Container Registry (GHCR)。
+项目集成了 GitHub Actions 自动化流水线，实现了从代码质检、单元测试到多端构建及 Docker 镜像发布的完整流程。
 
-### 1. 自动化流水线
+### 1. 自动化流水线流程
 
-工作流配置位于 `.github/workflows/docker-publish.yml`，触发条件为：
+- **日常提交**：推送到 `master` 分支即触发。自动执行 Lint、Type Check、单元测试，并更新 `ghcr.io` 中的 `:main` 标签镜像。
+- **正式发布**：推送以 `v` 开头的标签（如 `v1.0.0`）触发。除基础流程外，还将自动创建 GitHub Release。
 
-- 推送到 `main` 分支。
-- 发布以 `v` 开头的版本标签 (如 `v1.0.1`)。
+### 2. 官方发布与产物获取 (GitHub Releases)
 
-### 2. 权限配置
+在仓库首页右侧的 **Releases** 页面中，您可以获取：
 
-为了让 GitHub Actions 能够推送镜像，请确保：
+- **预编译后端包**：`nuxt-standalone.zip`（含所有前端 UI）。
+- **微信小程序正式版包**：方便直接导入微信开发者工具进行审核发布。
+- **变更日志 (Changelog)**：由流水线自动汇总的版本更新明细。
+- **安全证明**：基于 GitHub 标准生成的镜像来源可信证明。
 
-- 在仓库设置中：`Settings -> Actions -> General -> Workflow permissions` 设置为 **Read and write permissions**。
+### 3. 生产环境镜像引用
 
-### 3. 生产环境拉取镜像
-
-在生产服务器上，您可以使用托管在 GHCR 的镜像而无需重新构建：
+在生产服务器上，推荐通过引用的方式快速部署（无需 clone 源码和构建）：
 
 ```yaml
-# 生产环境示例：修改 docker-compose.yml 中的 image
+# docker-compose.prod.yml
 services:
   app:
-    image: ghcr.io/<你的用户名>/litemart-pos:main
+    image: ghcr.io/<GitHub用户名>/litemart-pos:main # 或指定具体版本号 :v1.0.0
     # ... 其他配置保持一致
 ```
+
+### 4. 权限配置提醒
+
+为了让流水线正常推送镜像，请务必在仓库设置中：
+`Settings -> Actions -> General -> Workflow permissions` 开启 **Read and write permissions**。
+
+---
 
 ### 提交前检查
 
