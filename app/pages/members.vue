@@ -135,10 +135,28 @@ const removeMember = async (member: MemberDto) => {
   }
 }
 
-const LEVEL_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  NORMAL: { label: '普通', color: 'var(--text-secondary)', bg: 'var(--bg-input-disabled)' },
+const DEFAULT_LEVEL_CONFIG = {
+  label: '普通',
+  color: 'var(--text-secondary)',
+  bg: 'var(--bg-input-disabled)'
+}
+
+const LEVEL_CONFIG: Record<string, typeof DEFAULT_LEVEL_CONFIG> = {
+  NORMAL: DEFAULT_LEVEL_CONFIG,
   SILVER: { label: '白银', color: '#64748b', bg: '#f1f5f9' },
   GOLD: { label: '黄金', color: '#b45309', bg: '#fef3c7' }
+}
+
+const getLevelConfig = (level: string) => {
+  return LEVEL_CONFIG[level] || DEFAULT_LEVEL_CONFIG
+}
+
+const getLevelStyle = (level: string) => {
+  const config = getLevelConfig(level)
+  return {
+    color: config.color,
+    background: config.bg
+  }
 }
 </script>
 
@@ -213,14 +231,8 @@ const LEVEL_CONFIG: Record<string, { label: string; color: string; bg: string }>
               <div class="member-detail">
                 <div class="member-top">
                   <span class="member-name">{{ member.name || '未命名' }}</span>
-                  <span
-                    class="level-badge"
-                    :style="{
-                      color: ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).color,
-                      background: ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).bg
-                    }"
-                  >
-                    {{ ((LEVEL_CONFIG as any)[member.level] || LEVEL_CONFIG.NORMAL).label }}
+                  <span class="level-badge" :style="getLevelStyle(member.level)">
+                    {{ getLevelConfig(member.level).label }}
                   </span>
                 </div>
                 <p class="member-phone">{{ member.phone }}</p>

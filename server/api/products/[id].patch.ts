@@ -90,8 +90,7 @@ export default defineEventHandler(async (event) => {
       data.price = price
     }
     if (body.memberPrice !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (body.memberPrice === null || (body.memberPrice as any) === '') {
+      if (body.memberPrice === null || String(body.memberPrice).trim() === '') {
         data.memberPrice = null
       } else {
         const memberPrice = Number(body.memberPrice)

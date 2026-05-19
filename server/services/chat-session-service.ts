@@ -189,7 +189,7 @@ export const appendChatMessage = async (
 
   await requireOwnedChatSession(db, sessionId, userId)
 
-  const [message] = await (db as any).$transaction([
+  const results = await (db as any).$transaction([
     (db as any).chatMessage.create({
       data: {
         sessionId,
@@ -202,6 +202,8 @@ export const appendChatMessage = async (
       data: { updatedAt: new Date() }
     })
   ])
+
+  const message = results[0] as any
 
   return {
     id: message.id,

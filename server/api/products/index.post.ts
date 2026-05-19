@@ -27,8 +27,7 @@ export default defineEventHandler(async (event) => {
     const memberPrice =
       body.memberPrice === null ||
       body.memberPrice === undefined ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (body.memberPrice as any) === ''
+      String(body.memberPrice).trim() === ''
         ? null
         : Number(body.memberPrice)
 
