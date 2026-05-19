@@ -22,13 +22,8 @@ const joinUrl = (path: string) => {
   }
 
   const baseUrl = String(appConfig.baseUrl || '')
-    .trim()
     .replace(/\/+$/, '')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
-
-  if (!baseUrl) {
-    return normalizedPath
-  }
 
   return `${baseUrl}${normalizedPath}`
 }

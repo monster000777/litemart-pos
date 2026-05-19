@@ -2,9 +2,9 @@
 import { onLaunch } from '@dcloudio/uni-app'
 import { useAuthStore } from './stores/auth'
 
-onLaunch(() => {
+onLaunch(async () => {
   const authStore = useAuthStore()
-  authStore.bootstrap()
+  await authStore.bootstrap()
 })
 </script>
 

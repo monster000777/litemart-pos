@@ -73,53 +73,90 @@ miniapp/
 在项目根目录执行：
 
 ```powershell
-cd E:\邹奣\Desktop\实训项目\litemart-pos
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
-如果需要让微信开发者工具访问你电脑上的服务，确保后端可被局域网访问。
+⚠️ **必须加** `--host 0.0.0.0` 才能被局域网内其他设备访问（微信开发者工具等）
 
-### 2. 配置请求地址
+### 2. 配置请求地址（多环境）
 
-编辑 [src/config/index.ts](/E:/邹奣/Desktop/实训项目/litemart-pos/miniapp/src/config/index.ts:1)：
+项目采用两环境 `baseUrl` 自动识别：
 
-```ts
-export const appConfig = {
-  baseUrl: 'http://192.168.1.100:3000',
-  requestTimeout: 12000
-}
+- 开发联调（lan）：`miniapp/.env.dev-lan` → `http://192.168.1.100:3000` (需改成实际IP)
+- 生产发布（prod）：`miniapp/.env.production` → `https://api.litemart.local` (需改成实际域名)
+
+#### 环境变量配置
+
+参考 `miniapp/.env.example` 了解完整的环境变量说明和示例。
+
+#### 自定义环境地址
+
+编辑对应的 `.env.*` 文件修改 `VITE_API_BASE_URL`：
+
+```bash
+# 开发联调 (微信开发者工具 → 局域网后端)
+# ⚠️ 必须是你开发机的真实 IP，不能用 127.0.0.1（小程序沙箱限制）
+VITE_API_BASE_URL=http://192.168.1.100:3000
+
+# 生产部署 (真实 API 域名)
+VITE_API_BASE_URL=https://api.your-domain.com
 ```
 
-使用建议：
-
-- `H5` 本机调试：可用 `http://127.0.0.1:3000`
-- 微信开发者工具：通常要改成你电脑的局域网 IP
-
-查看本机 IP：
+#### 查看本机 IP
 
 ```powershell
 ipconfig
 ```
 
+找 `IPv4 地址` 一行，格式 `192.168.x.x` 或 `10.x.x.x`
+
+#### 发布部署说明
+
+**⚠️ 重要：务必修改生产API地址**
+
+1. 修改 `.env.production` 中的 `VITE_API_BASE_URL`，将 `https://YOUR_API_DOMAIN.com` 替换为实际后端域名
+2. 执行 `npm run build:mp-weixin` 构建发布版本
+3. 构建输出在 `unpackage/dist/build/mp-weixin/`
+4. 用微信开发者工具打开该目录，验证网络请求是否正确指向生产 API
+5. 验证步骤：打开首页 → 控制台应显示 `[LiteMart POS] API BaseURL: https://YOUR_ACTUAL_DOMAIN.com`
+
 ### 3. 安装依赖
 
 ```powershell
-cd E:\邹奣\Desktop\实训项目\litemart-pos\miniapp
+cd .\miniapp
 npm install
 ```
 
 ### 4. 启动小程序
 
-微信小程序开发模式：
+**开发联调（推荐）：**
 
 ```powershell
 npm run dev:mp-weixin
 ```
 
-H5 预览：
+或显式指定 LAN 模式：
+
+```powershell
+npm run dev:mp-weixin:lan
+```
+
+H5 预览（浏览器预览）：
 
 ```powershell
 npm run dev:h5
+```
+
+构建发布版本：
+
+```powershell
+npm run build:mp-weixin
+```
+
+清理旧缓存与构建产物：
+
+```powershell
+npm run clean
 ```
 
 ### 5. 单独检查小程序源码
@@ -138,11 +175,13 @@ npm run lint:miniapp:fix
 
 ### 6. HBuilderX
 
-直接打开：
+在项目根目录，相对路径打开：
 
 ```text
-E:\邹奣\Desktop\实训项目\litemart-pos\miniapp
+./miniapp
 ```
+
+或在 HBuilderX 中使用"文件 > 打开文件夹"，选择 `miniapp` 目录。
 
 然后运行到：
 
@@ -178,10 +217,11 @@ miniapp/src/static/tab/
 - 退出登录收回到 `authService`
 - 首页、登录页、购物车页、订单页、我的页视觉风格已基本统一
 - 修掉了多处乱码、旧缓存误导和 tab 图标路径问题
+- `baseUrl` 已改为 lan / prod 双环境配置
+- 增加 `npm run clean` 用于清理遗留缓存和旧构建产物
 
 ## 已知限制
 
-- `baseUrl` 现在仍是手动切换，不是多环境配置
 - 页面级 loading 仍然是各页自己管理，尚未做全局 loading
 - 还没有商品详情页、分类页和支付流程
 
@@ -198,7 +238,6 @@ miniapp/src/static/tab/
 
 ## 下一步推荐
 
-1. 把 `baseUrl` 改成分环境配置
-2. 增加全局 loading / 错误提示策略
-3. 补商品详情与分类
-4. 接支付与更完整的会员中心
+1. 增加全局 loading / 错误提示策略
+2. 补商品详情与分类
+3. 接支付与更完整的会员中心

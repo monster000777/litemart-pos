@@ -24,7 +24,7 @@ export const useCartStore = defineStore('cart', {
         const unitPrice = state.member && item.memberPrice != null ? item.memberPrice : item.price
         return sum + unitPrice * item.quantity
       }, 0)
-      const discount = Math.min(Math.floor(state.pointsToUse / 100), Math.floor(subtotal * 0.5))
+      const discount = Math.max(0, Math.min(Math.floor(state.pointsToUse / 100), Math.floor(subtotal * 0.5)))
       return Math.max(0, Number((subtotal - discount).toFixed(2)))
     }
   },

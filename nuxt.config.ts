@@ -43,5 +43,9 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ['@formkit/auto-animate/vue', 'marked', 'dompurify']
     }
+  },
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
   }
 })
