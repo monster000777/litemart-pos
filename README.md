@@ -13,6 +13,30 @@
 
 ---
 
+## 核心特性
+
+- 🛒 **高效收银**：响应式收银界面，支持条码搜索、扫码模拟，集成会员价逻辑。
+- 📦 **库存管理**：完整的进销存流程，支持供应商管理、采购入库及库存预警。
+- 👥 **会员体系**：多级会员制，支持积分累积、等级折扣及详细的积分流水记录。
+- 🤖 **智能助手**：内置 AI 经营分析，支持通过自然语言查询销售趋势、库存状态等。
+- 🔐 **权限合规**：精细的角色访问控制 (RBAC)，完整的审计日志，保障系统安全。
+- 📱 **多端协同**：提供小程序端，方便店员或顾客随时查看商品与订单信息。
+
+---
+
+## 环境变量说明
+
+| 变量名             | 必填 | 说明                                                           |
+| :----------------- | :--- | :------------------------------------------------------------- |
+| `DATABASE_URL`     | 是   | SQLite 数据库路径，容器内部固定为 `file:/app/data/litemart.db` |
+| `NUXT_AUTH_SECRET` | 是   | 用于 JWT 签名的密钥，请使用长随机字符串                        |
+| `NUXT_AI_PROVIDER` | 否   | AI 服务商 (如 `openai`, `minimax`)                             |
+| `NUXT_AI_API_KEY`  | 否   | AI 服务的 API Key                                              |
+| `NUXT_AI_API_URL`  | 否   | AI 服务的接口地址 (如使用代理或特定供应商)                     |
+| `NUXT_AI_MODEL`    | 否   | 指定使用的 AI 模型名称                                         |
+
+---
+
 ## 快速开始
 
 ### 环境要求
@@ -93,6 +117,42 @@ npm run prisma:seed
 npm run build
 npm run preview
 ```
+
+### Docker 快速部署
+
+推荐使用 Docker 进行生产环境部署，以确保环境一致性并简化初始化流程。
+
+**1. 准备环境**
+确保宿主机已安装 Docker 和 Docker Compose。
+
+**2. 配置环境变量**
+复制并编辑 `.env` 文件：
+
+```bash
+cp .env.example .env
+```
+
+请务必填写 `NUXT_AUTH_SECRET`，并根据需要配置 AI 接口参数。
+
+**3. 一键启动**
+
+```bash
+docker compose up -d --build
+```
+
+此命令将：
+
+- 构建应用镜像。
+- 启动 `db-init` 容器自动执行数据库迁移 (`prisma migrate`) 和数据填充 (`prisma seed`)。
+- 启动 `app` 容器运行收银系统。
+- 自动挂载 `litemart-data` 卷实现 SQLite 数据库持久化。
+
+**4. 常用维护命令**
+
+- **查看日志**：`docker compose logs -f app`
+- **停止服务**：`docker compose down`
+- **进入容器检查**：`docker exec -it litemart-pos sh`
+- **重置数据库**：`docker compose down -v` (注意：这将删除所有持久化数据)
 
 ### 提交前检查
 
@@ -246,14 +306,14 @@ npx tsx --tsconfig .nuxt/tsconfig.json scripts/test-membership.ts
 ## 项目结构
 
 ```text
-app/                  前端页面、状态和组合式函数
-server/               API、业务服务、鉴权中间件
-prisma/               数据模型、迁移、种子数据、SQLite 数据库
-shared/               前后端共享常量
-scripts/              辅助脚本与检查脚本
-tests/unit/           单元测试
-public/               静态资源与上传文件
-miniapp/              小程序端独立工程
+app/                  # 前端 UI 层 (Nuxt Pages, Components, Composables)
+server/               # 后端业务层 (Nitro API, Server Middleware, Services)
+prisma/               # 数据库层 (Schema 定义、数据迁移脚本、Seed 数据)
+shared/               # 公共定义 (前后端共用的常量、类型定义)
+scripts/              # 工具脚本 (数据库健康检查、会员测试等)
+tests/                # 测试套件 (集成测试与单元测试)
+public/               # 静态资源 (图片、上传的商品图存储路径)
+miniapp/              # 移动端 (基于 uni-app 的独立小程序工程)
 ```
 
 ---

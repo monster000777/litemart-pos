@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: litemart-pos
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/litemart.db
+    env_file:
+      - .env
+    volumes:
+      - litemart-data:/app/data
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-sf', 'http://localhost:3000/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Run Prisma migrations and seed on first start
+  db-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: litemart-db-init
+    working_dir: /app
+    entrypoint: ['sh', '-c', 'npx prisma migrate deploy && npx prisma db seed']
+    environment:
+      - DATABASE_URL=file:/app/data/litemart.db
+    env_file:
+      - .env
+    volumes:
+      - litemart-data:/app/data
+    restart: 'no'
+
+volumes:
+  litemart-data:
+    driver: local

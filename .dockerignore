@@ -1,0 +1,33 @@
+node_modules
+.git
+.output
+.cache
+.vscode
+.idea
+coverage
+*.log
+
+# Environment files
+.env
+!.env.example
+
+# Documentation
+*.md
+!README.md
+
+# Database files
+prisma/dev.db
+prisma/test.db
+
+# Miniapp (build separately)
+miniapp/node_modules
+miniapp/dist
+
+# Test files
+tests
+**/*.test.ts
+**/*.spec.ts
+
+# OS files
+.DS_Store
+Thumbs.db
