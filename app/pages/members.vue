@@ -163,24 +163,45 @@ const getLevelStyle = (level: string) => {
 <template>
   <div class="page-root">
     <!-- 顶部标题栏 -->
-    <header class="page-header">
+    <header
+      class="flex flex-col gap-5 rounded-2xl border border-slate-100 bg-white p-8 lg:flex-row lg:items-center lg:justify-between"
+    >
       <div class="header-left">
-        <h1 class="header-title">会员管理</h1>
-        <span class="header-count">{{ members.length }} 位会员</span>
+        <div>
+          <p class="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+            Member Management
+          </p>
+          <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900">会员管理</h2>
+          <p class="mt-2 text-sm text-slate-500">{{ members.length }} 位会员</p>
+        </div>
       </div>
-      <button type="button" class="btn-new" @click="openCreate">
-        <Plus class="icon" />
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-100 bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)]"
+        @click="openCreate"
+      >
+        <Plus class="h-4 w-4" />
         新建会员
       </button>
     </header>
 
     <!-- 搜索筛选 -->
-    <div class="search-bar">
-      <div class="search-wrap">
-        <Search class="search-icon" />
-        <input v-model="search" type="text" placeholder="搜索手机号或姓名" class="search-input" />
-      </div>
-      <select v-model="level" class="level-select">
+    <div class="flex flex-wrap items-center gap-3">
+      <label
+        class="flex flex-1 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2"
+      >
+        <Search class="h-4 w-4 text-slate-400" />
+        <input
+          v-model="search"
+          type="text"
+          placeholder="搜索手机号或姓名"
+          class="flex-1 bg-transparent text-sm outline-none"
+        />
+      </label>
+      <select
+        v-model="level"
+        class="rounded-xl border border-slate-100 bg-white px-3 py-2 text-sm text-slate-600 outline-none transition focus:border-slate-400"
+      >
         <option value="">全部等级</option>
         <option value="NORMAL">普通</option>
         <option value="SILVER">白银</option>
@@ -242,12 +263,20 @@ const getLevelStyle = (level: string) => {
               </div>
             </div>
 
-            <div class="member-actions">
-              <button type="button" class="btn-icon" @click="openEdit(member)">
-                <Pencil class="icon" />
+            <div class="flex flex-shrink-0 gap-1.5">
+              <button
+                type="button"
+                class="rounded-lg border border-slate-100 bg-white p-1.5 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                @click="openEdit(member)"
+              >
+                <Pencil class="h-3.5 w-3.5" />
               </button>
-              <button type="button" class="btn-icon btn-icon-danger" @click="confirmDelete(member)">
-                <Trash2 class="icon" />
+              <button
+                type="button"
+                class="rounded-lg border border-slate-100 bg-white p-1.5 text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                @click="confirmDelete(member)"
+              >
+                <Trash2 class="h-3.5 w-3.5" />
               </button>
             </div>
           </template>
@@ -301,12 +330,29 @@ const getLevelStyle = (level: string) => {
           <p v-if="formError" class="form-error">{{ formError }}</p>
 
           <SheetFooter>
-            <button type="button" class="btn-cancel" :disabled="submitting" @click="closeSheet">
+            <button
+              type="button"
+              class="rounded-xl border border-slate-100 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-zinc-50 hover:text-slate-900"
+              :disabled="submitting"
+              @click="closeSheet"
+            >
               取消
             </button>
-            <button type="submit" class="btn-submit" :disabled="submitting">
-              <LoaderCircle v-if="submitting" class="spin icon" />
-              <span v-else>{{ isEditMode ? '保存修改' : '创建会员' }}</span>
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:bg-[var(--btn-disabled-bg)]"
+              :disabled="submitting"
+            >
+              <LoaderCircle v-if="submitting" class="h-4 w-4 animate-spin" />
+              <span>{{
+                submitting
+                  ? isEditMode
+                    ? '保存中...'
+                    : '创建中...'
+                  : isEditMode
+                    ? '保存修改'
+                    : '创建会员'
+              }}</span>
             </button>
           </SheetFooter>
         </form>
@@ -323,112 +369,6 @@ const getLevelStyle = (level: string) => {
   gap: 1.25rem;
   min-height: 0;
   flex: 1;
-}
-
-/* ===== 顶部标题栏 ===== */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.header-left {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-}
-
-.header-title {
-  font-size: 1.375rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-.header-count {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-}
-
-.btn-new {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  height: 2.25rem;
-  padding: 0 0.875rem;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-new:hover {
-  background: var(--btn-primary-hover);
-}
-
-/* ===== 搜索栏 ===== */
-.search-bar {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.search-wrap {
-  flex: 1;
-  position: relative;
-}
-
-.search-icon {
-  position: absolute;
-  left: 0.625rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0.875rem;
-  height: 0.875rem;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  height: 2.25rem;
-  padding: 0 0.625rem 0 2rem;
-  border: 1px solid var(--border-default);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-  box-sizing: border-box;
-}
-.search-input:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px var(--ring-focus);
-}
-.search-input::placeholder {
-  color: var(--btn-disabled-bg);
-}
-
-.level-select {
-  height: 2.25rem;
-  padding: 0 0.625rem;
-  border: 1px solid var(--border-default);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--text-medium);
-  background: var(--bg-input);
-  outline: none;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.level-select:focus {
-  border-color: var(--border-focus);
 }
 
 /* ===== 会员列表面板 ===== */
@@ -560,40 +500,6 @@ const getLevelStyle = (level: string) => {
   margin: 0.125rem 0 0;
 }
 
-/* 操作按钮 */
-.member-actions {
-  display: flex;
-  gap: 0.375rem;
-  flex-shrink: 0;
-}
-
-.btn-icon {
-  width: 1.875rem;
-  height: 1.875rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border-default);
-  border-radius: 0.375rem;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    color 0.15s,
-    background 0.15s;
-}
-.btn-icon:hover {
-  border-color: var(--border-focus);
-  color: var(--text-primary);
-  background: var(--bg-page);
-}
-.btn-icon-danger:hover {
-  border-color: var(--border-error);
-  color: var(--color-error);
-  background: var(--bg-error);
-}
-
 /* 删除确认态 */
 .delete-confirm {
   display: flex;
@@ -700,48 +606,6 @@ const getLevelStyle = (level: string) => {
   font-size: 0.8125rem;
   color: var(--color-error);
   margin: 0;
-}
-
-.btn-cancel {
-  flex: 1;
-  height: 2.5rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.375rem;
-  background: var(--bg-card);
-  font-size: 0.9375rem;
-  color: var(--text-medium);
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
-}
-.btn-cancel:hover {
-  background: var(--bg-input-disabled);
-  border-color: var(--border-focus);
-}
-
-.btn-submit {
-  flex: 1;
-  height: 2.5rem;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  transition: background 0.15s;
-}
-.btn-submit:hover:not(:disabled) {
-  background: var(--btn-primary-hover);
-}
-.btn-submit:disabled {
-  background: var(--btn-disabled-bg);
-  cursor: not-allowed;
 }
 
 /* ===== 通用 ===== */

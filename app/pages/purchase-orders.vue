@@ -14,6 +14,7 @@ import Sheet from '~/components/ui/sheet/Sheet.vue'
 import SheetContent from '~/components/ui/sheet/SheetContent.vue'
 import SheetHeader from '~/components/ui/sheet/SheetHeader.vue'
 import SheetTitle from '~/components/ui/sheet/SheetTitle.vue'
+import SheetFooter from '~/components/ui/sheet/SheetFooter.vue'
 import type { PurchaseOrderDto, PurchaseOrderListResponse, SupplierDto } from '~/types/supplier'
 
 const statusFilter = ref('')
@@ -471,7 +472,7 @@ const goPage = (page: number) => {
                 </label>
                 <button
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-md bg-[var(--btn-primary-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:bg-[var(--btn-disabled-bg)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  class="inline-flex items-center gap-1 rounded-xl border border-slate-100 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-zinc-50 hover:text-slate-900 disabled:opacity-40"
                   :disabled="!form.supplierId"
                   @click="addItem"
                 >
@@ -566,23 +567,23 @@ const goPage = (page: number) => {
           </div>
 
           <!-- 底部按钮 -->
-          <div class="border-t border-slate-100 pt-3 mt-3 flex gap-2">
+          <SheetFooter>
             <button
               type="button"
-              class="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              class="rounded-xl border border-slate-100 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-zinc-50 hover:text-slate-900"
               @click="sheetOpen = false"
             >
               取消
             </button>
             <button
               type="submit"
-              class="flex-1 inline-flex items-center justify-center rounded-lg bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:cursor-not-allowed disabled:bg-[var(--btn-disabled-bg)]"
+              class="rounded-xl bg-[var(--btn-primary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--btn-primary-text)] transition hover:bg-[var(--btn-primary-hover)] disabled:bg-[var(--btn-disabled-bg)]"
               :disabled="submitting || !form.supplierId || !form.items.length"
             >
-              <LoaderCircle v-if="submitting" class="mr-1.5 h-4 w-4 animate-spin" />
+              <LoaderCircle v-if="submitting" class="mx-auto h-4 w-4 animate-spin" />
               <span v-else>确认创建</span>
             </button>
-          </div>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>
