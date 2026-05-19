@@ -27,6 +27,7 @@ const bindMember = async () => {
     const member = await customerService.lookupMember(memberPhone.value.trim())
     if (!member) {
       uni.showToast({ title: '未找到会员', icon: 'none' })
+      cartStore.setMember(null)
       return
     }
 

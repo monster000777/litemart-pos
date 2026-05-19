@@ -5,4 +5,11 @@ unpackage
 .DS_Store
 coverage
 *.log
-*.local
+
+# Environment files (specific .env files, but keep .env.example)
+.env
+.env.local
+.env.*.local
+.env.dev-*
+.env.production
+!.env.example
