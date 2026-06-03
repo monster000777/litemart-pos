@@ -5,7 +5,11 @@ import {
   persistChatExchange,
   requireOwnedChatSession
 } from '~~/server/services/chat-session-service'
-import { executeAiTextRequest, getAiErrorMessage } from '~~/server/utils/ai-client'
+import {
+  executeAiTextRequest,
+  executeAiTextStreamRequest,
+  getAiErrorMessage
+} from '~~/server/utils/ai-client'
 import { resolveAiConfig } from '~~/server/utils/ai-config'
 
 const SYSTEM_PROMPT_TEMPLATE = `
@@ -21,10 +25,36 @@ const SYSTEM_PROMPT_TEMPLATE = `
 ###CONTEXT###
 `.trim()
 
+const MARKDOWN_OUTPUT_RULES = `
+输出格式要求：
+1. 只输出最终答案，不要输出思考过程、reasoning 内容、<think> 标签或“思考：”段落。
+2. 使用美观的 Markdown 排版：标题、加粗、分隔线、列表、必要时使用表格。
+3. 可以适度使用业务相关 emoji，例如 📊、🏆、⚠️、💡、📦，但不要堆砌。
+4. 结论优先：先给出核心结论，再说明数据依据，最后给出简短建议。
+5. 不要用 \`\`\`markdown 或 \`\`\`md 包裹整段回答。
+6. 不要输出 HTML、JSON、SSE data 前缀、调试信息或接口元数据。
+`.trim()
+
+const writeSseHeaders = (event: any) => {
+  event.node.res.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  })
+  event.node.res.flushHeaders?.()
+}
+
+const writeSse = (event: any, payload: Record<string, unknown>) => {
+  event.node.res.write(`data: ${JSON.stringify(payload)}\n\n`)
+  event.node.res.flush?.()
+}
+
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const { question, history = [], sessionId } = body
+    const wantsStream = body.stream === true
 
     if (!question) {
       throw createError({ statusCode: 400, message: '问题不能为空' })
@@ -37,6 +67,14 @@ export default defineEventHandler(async (event) => {
 
     if (sessionId) {
       await requireOwnedChatSession(prisma, sessionId, userId)
+    }
+
+    if (!aiApiKey && wantsStream) {
+      writeSseHeaders(event)
+      writeSse(event, { type: 'error', message: 'AI API Key is not configured.' })
+      writeSse(event, { type: 'done' })
+      event.node.res.end()
+      return
     }
 
     if (!aiApiKey) {
@@ -117,10 +155,10 @@ export default defineEventHandler(async (event) => {
       recentAuditLogs: recentLogs
     }
 
-    const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace(
+    const systemPrompt = `${SYSTEM_PROMPT_TEMPLATE.replace(
       '###CONTEXT###',
       JSON.stringify(contextData)
-    )
+    )}\n\n${MARKDOWN_OUTPUT_RULES}`
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -139,7 +177,7 @@ export default defineEventHandler(async (event) => {
       }))
       .concat({ sender_type: 'USER', sender_name: 'user', text: question })
 
-    const { text: reply, remoteFailures } = await executeAiTextRequest({
+    const aiRequest = {
       aiApiKey,
       aiModel,
       candidateUrls,
@@ -151,6 +189,37 @@ export default defineEventHandler(async (event) => {
       botName: 'bot',
       temperature: 0.1,
       maxTokens: 800
+    }
+
+    if (wantsStream) {
+      writeSseHeaders(event)
+
+      try {
+        const { text: reply, remoteFailures } = await executeAiTextStreamRequest(aiRequest, {
+          onText: (delta) => writeSse(event, { type: 'delta', delta })
+        })
+
+        if (!reply) {
+          const errMessage =
+            remoteFailures.at(-1)?.replace(/^[^:]+:\s*/, '') || 'AI returned an empty response.'
+          writeSse(event, { type: 'error', message: errMessage })
+        } else if (sessionId && userId) {
+          await persistChatExchange(prisma, sessionId, userId, question, reply)
+        }
+
+        writeSse(event, { type: 'done' })
+      } catch (error) {
+        writeSse(event, { type: 'error', message: getAiErrorMessage(error) || 'Chat failed.' })
+        writeSse(event, { type: 'done' })
+      } finally {
+        event.node.res.end()
+      }
+
+      return
+    }
+
+    const { text: reply, remoteFailures } = await executeAiTextRequest({
+      ...aiRequest
     })
 
     if (!reply) {

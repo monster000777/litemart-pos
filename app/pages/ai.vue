@@ -35,6 +35,10 @@ const {
 const chatContainer = ref<HTMLElement | null>(null)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
+const showStandalonePending = computed(
+  () => chatPending.value && chatHistory.value.at(-1)?.role !== 'assistant'
+)
+
 const presetQuestions = [
   '分析今日销售情况与客流趋势',
   '帮我查一下哪几款商品需要补货了',
@@ -64,6 +68,13 @@ const scrollToBottom = () => {
 // 监听消息数量变化自动滚动到底部
 watch(
   () => chatHistory.value.length,
+  () => {
+    scrollToBottom()
+  }
+)
+
+watch(
+  () => chatHistory.value.at(-1)?.content,
   () => {
     scrollToBottom()
   }
@@ -100,13 +111,30 @@ const handleClearChat = async () => {
   }
 }
 
+const isPendingAssistantMessage = (msg: { role: string; content: string }, index: number) =>
+  chatPending.value &&
+  msg.role === 'assistant' &&
+  index === chatHistory.value.length - 1 &&
+  !msg.content.trim()
+
+const normalizeAssistantMarkdown = (content: string) =>
+  content
+    .trim()
+    .replace(/^```(?:markdown|md)\s*\n([\s\S]*?)\n```$/i, '$1')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<\/?think>/gi, '')
+    .replace(/^[\s\S]*?(?=当前上下文暂无该数据支持)/, '')
+    .trim()
+
 const formatChatMessage = (msg: { role: string; content: string }) => {
   if (msg.role === 'user') {
     return msg.content.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
   }
 
   if (import.meta.client) {
-    const rawHtml = marked.parse(msg.content, { breaks: true }) as string
+    const rawHtml = marked.parse(normalizeAssistantMarkdown(msg.content), {
+      breaks: true
+    }) as string
     const source = DOMPurify as unknown
     const purify =
       typeof source === 'function'
@@ -279,18 +307,30 @@ onMounted(async () => {
           </div>
           <!-- eslint-disable-next-line vue/no-v-html -->
           <div
-            class="max-w-[85%] break-words rounded-2xl px-5 py-3.5 text-[0.95rem] leading-relaxed shadow-sm"
+            class="max-w-[85%] break-words rounded-2xl px-5 text-[0.95rem] leading-relaxed shadow-sm"
             :class="
               msg.role === 'user'
-                ? 'bg-indigo-600 text-white rounded-tr-sm'
-                : 'max-w-none rounded-tl-sm border border-slate-100 bg-white text-slate-700 prose prose-sm prose-slate prose-p:leading-relaxed prose-pre:border prose-pre:border-slate-100 prose-pre:bg-slate-50 prose-pre:text-slate-700 prose-a:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:prose-invert dark:prose-pre:border-zinc-800 dark:prose-pre:bg-zinc-950 dark:prose-pre:text-zinc-200 dark:prose-a:text-indigo-300'
+                ? 'bg-indigo-600 text-white rounded-tr-sm py-3.5'
+                : 'max-w-[78%] rounded-tl-sm border border-slate-100 bg-white pb-3 pt-3.5 text-slate-700 prose prose-sm prose-slate prose-headings:mt-1 prose-headings:mb-2 prose-p:my-1.5 prose-p:leading-relaxed prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-table:my-2 prose-pre:my-2 prose-pre:border prose-pre:border-slate-100 prose-pre:bg-slate-50 prose-pre:text-slate-700 prose-a:text-indigo-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:prose-invert dark:prose-pre:border-zinc-800 dark:prose-pre:bg-zinc-950 dark:prose-pre:text-zinc-200 dark:prose-a:text-indigo-300'
             "
-            v-html="formatChatMessage(msg)"
-          ></div>
+          >
+            <div
+              v-if="isPendingAssistantMessage(msg, index)"
+              class="flex items-center gap-3 text-slate-500 dark:text-zinc-400"
+            >
+              <Loader2 class="w-4 h-4 animate-spin text-indigo-600" />
+              <span class="text-sm font-medium tracking-wide">正在分析数据...</span>
+            </div>
+            <div
+              v-else
+              class="[&>:first-child]:mt-0 [&>:last-child]:mb-0"
+              v-html="formatChatMessage(msg)"
+            ></div>
+          </div>
         </div>
 
         <!-- Pending State -->
-        <div v-if="chatPending" class="flex gap-4 animate-in fade-in duration-300">
+        <div v-if="showStandalonePending" class="flex gap-4 animate-in fade-in duration-300">
           <div
             class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-slate-100 bg-white text-slate-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
           >

@@ -30,6 +30,7 @@ logs
 .env.*
 !.env.example
 CLAUDE.md
+AGENTS.md
 
 # Docs (local development notes)
 doc/

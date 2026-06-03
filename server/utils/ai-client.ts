@@ -5,10 +5,18 @@ export type AiResponse = {
     text?: string
   }
   choices?: Array<{
+    delta?: {
+      content?: string
+      reasoning_content?: string
+    }
     message?: {
       content?: string
+      reasoning_content?: string
     }
   }>
+  error?: {
+    message?: string
+  }
   base_resp?: {
     status_code?: number
     status_msg?: string
@@ -46,6 +54,10 @@ type ExecuteAiTextResult = {
   remoteFailures: string[]
 }
 
+type ExecuteAiTextStreamHandlers = {
+  onText: (text: string) => void | Promise<void>
+}
+
 const buildRequestHeaders = (aiApiKey: string) => ({
   'Content-Type': 'application/json',
   Authorization: `Bearer ${aiApiKey}`
@@ -64,10 +76,19 @@ export const getAiErrorMessage = (error: unknown) => {
       base_resp?: { status_msg?: string }
       message?: string
     }
+    error?: {
+      message?: string
+    }
     message?: string
   } | null
 
-  return err?.data?.base_resp?.status_msg || err?.data?.message || err?.message || 'unknown error'
+  return (
+    err?.data?.base_resp?.status_msg ||
+    err?.data?.message ||
+    err?.error?.message ||
+    err?.message ||
+    'unknown error'
+  )
 }
 
 export const isMiniMaxBotSettingError = (message: string) => {
@@ -76,6 +97,10 @@ export const isMiniMaxBotSettingError = (message: string) => {
 }
 
 const assertSuccessfulAiResponse = (response: AiResponse, fallbackMessage: string) => {
+  if (response.error?.message) {
+    throw new Error(response.error.message)
+  }
+
   if (response.base_resp && response.base_resp.status_code !== 0) {
     throw new Error(response.base_resp.status_msg || fallbackMessage)
   }
@@ -98,6 +123,83 @@ const callOpenAiCompatible = (
       max_tokens: options.maxTokens
     }
   })
+
+const extractAiStreamText = (payload: AiResponse) =>
+  payload.choices?.[0]?.delta?.content || payload.choices?.[0]?.message?.content || ''
+
+const callOpenAiCompatibleStream = async (
+  url: string,
+  options: Pick<
+    ExecuteAiTextRequest,
+    'aiApiKey' | 'aiModel' | 'openAiMessages' | 'temperature' | 'maxTokens'
+  >,
+  handlers: ExecuteAiTextStreamHandlers
+) => {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: buildRequestHeaders(options.aiApiKey),
+    body: JSON.stringify({
+      model: options.aiModel,
+      messages: options.openAiMessages,
+      temperature: options.temperature,
+      max_tokens: options.maxTokens,
+      stream: true
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
+
+  if (!response.body) {
+    throw new Error('empty stream response')
+  }
+
+  const decoder = new TextDecoder()
+  const reader = response.body.getReader()
+  let buffer = ''
+  let text = ''
+
+  const handleLine = async (line: string) => {
+    const normalized = line.trim()
+    if (!normalized.startsWith('data:')) return false
+
+    const rawData = normalized.slice(5).trim()
+    if (!rawData || rawData === '[DONE]') return rawData === '[DONE]'
+
+    const payload = JSON.parse(rawData) as AiResponse
+    assertSuccessfulAiResponse(payload, 'AI 鎺ュ彛寮傚父')
+
+    const delta = extractAiStreamText(payload)
+    if (delta) {
+      text += delta
+      await handlers.onText(delta)
+    }
+
+    return false
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split(/\r?\n/)
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (await handleLine(line)) {
+        return text
+      }
+    }
+  }
+
+  if (buffer && (await handleLine(buffer))) {
+    return text
+  }
+
+  return text
+}
 
 const callMiniMaxLegacy = (
   url: string,
@@ -207,4 +309,46 @@ export const executeAiTextRequest = async (
   }
 
   return { text: '', remoteFailures }
+}
+
+export const executeAiTextStreamRequest = async (
+  options: ExecuteAiTextRequest,
+  handlers: ExecuteAiTextStreamHandlers
+): Promise<ExecuteAiTextResult> => {
+  const remoteFailures: string[] = []
+
+  for (const url of options.candidateUrls) {
+    let streamedText = ''
+
+    try {
+      const text = await callOpenAiCompatibleStream(url, options, {
+        onText: async (delta) => {
+          streamedText += delta
+          await handlers.onText(delta)
+        }
+      })
+
+      if (text) {
+        return { text, remoteFailures }
+      }
+
+      remoteFailures.push(`openai-compatible-stream(${url}): empty response`)
+    } catch (error) {
+      remoteFailures.push(`openai-compatible-stream(${url}): ${getAiErrorMessage(error)}`)
+
+      if (streamedText) {
+        return { text: streamedText, remoteFailures }
+      }
+    }
+  }
+
+  const fallback = await executeAiTextRequest(options)
+  if (fallback.text) {
+    await handlers.onText(fallback.text)
+  }
+
+  return {
+    text: fallback.text,
+    remoteFailures: [...remoteFailures, ...fallback.remoteFailures]
+  }
 }

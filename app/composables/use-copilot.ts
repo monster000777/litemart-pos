@@ -281,6 +281,7 @@ export function useCopilot() {
     const session = activeSession.value
     const normalizedText = text.trim()
     const isFirstMessage = session.messages.length === 0
+    let assistantMessageIndex = -1
 
     if (isFirstMessage) {
       session.title = normalizedText.slice(0, 15) + (normalizedText.length > 15 ? '...' : '')
@@ -296,20 +297,80 @@ export function useCopilot() {
       const remoteSession = await ensureRemoteSession(session)
       const sessionId = remoteSession?.isLocal ? undefined : remoteSession?.id
 
-      const res = await $fetch<{ reply: string }>('/api/insights/chat', {
+      session.messages.push({ role: 'assistant', content: '' })
+      assistantMessageIndex = session.messages.length - 1
+      session.messageCount = session.messages.length
+
+      const response = await fetch('/api/insights/chat', {
         method: 'POST',
-        body: {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           question: normalizedText,
-          history: session.messages.slice(0, -1).map((message) => ({
+          history: session.messages.slice(0, -2).map((message) => ({
             role: message.role,
             content: message.content
           })),
-          sessionId
-        }
+          sessionId,
+          stream: true
+        })
       })
 
-      session.messages.push({ role: 'assistant', content: res.reply })
-      session.messageCount = session.messages.length
+      if (!response.ok || !response.body) {
+        throw new Error(response.statusText || 'Stream response failed')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      const handleLine = (line: string) => {
+        const normalized = line.trim()
+        if (!normalized.startsWith('data:')) return false
+
+        const payload = JSON.parse(normalized.slice(5)) as {
+          type?: 'delta' | 'done' | 'error'
+          delta?: string
+          message?: string
+        }
+
+        if (payload.type === 'delta' && payload.delta) {
+          const currentMessage = session.messages[assistantMessageIndex]
+          if (currentMessage) {
+            currentMessage.content += payload.delta
+          }
+        }
+
+        if (payload.type === 'error') {
+          throw new Error(payload.message || 'Stream response failed')
+        }
+
+        return payload.type === 'done'
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split(/\r?\n/)
+        buffer = lines.pop() || ''
+
+        let shouldStop = false
+        for (const line of lines) {
+          if (handleLine(line)) {
+            shouldStop = true
+            break
+          }
+        }
+        if (shouldStop) break
+      }
+
+      if (buffer) handleLine(buffer)
+
+      if (!session.messages[assistantMessageIndex]?.content) {
+        throw new Error('AI returned an empty response')
+      }
+
       session.updatedAt = Date.now()
 
       if (isFirstMessage && sessionId) {
@@ -321,7 +382,19 @@ export function useCopilot() {
     } catch (error: unknown) {
       const err = error as ApiErrorLike
       const msg = err.data?.message || err.message || '发送失败'
-      session.messages.push({ role: 'assistant', content: `[发送失败] ${msg}` })
+      const assistantMessage =
+        assistantMessageIndex !== -1 ? session.messages[assistantMessageIndex] : undefined
+
+      if (assistantMessage?.content) {
+        assistantMessage.content += `\n\n> ⚠️ ${msg}`
+      } else {
+        if (assistantMessageIndex !== -1) {
+          session.messages.splice(assistantMessageIndex, 1)
+        }
+        session.messages.push({ role: 'assistant', content: `[发送失败] ${msg}` })
+      }
+
+      session.messageCount = session.messages.length
       session.updatedAt = Date.now()
     } finally {
       session.pending = false

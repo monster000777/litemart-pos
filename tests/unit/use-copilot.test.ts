@@ -21,12 +21,30 @@ describe('useCopilot', () => {
   })
 
   it('should keep chat usable when remote session creation fails', async () => {
-    const fetchMock = vi
+    const remoteFetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error('create failed'))
       .mockRejectedValueOnce(new Error('create failed again'))
-      .mockResolvedValueOnce({ reply: 'assistant reply' })
-    vi.stubGlobal('$fetch', fetchMock)
+    vi.stubGlobal('$fetch', remoteFetchMock)
+
+    const encoder = new TextEncoder()
+    const chunks = [
+      encoder.encode(
+        'data: {"type":"delta","delta":"assistant reply"}\n\ndata: {"type":"done"}\n\n'
+      )
+    ]
+    let readCount = 0
+    const chatFetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: vi.fn(async () =>
+            readCount++ === 0 ? { done: false, value: chunks[0] } : { done: true }
+          )
+        })
+      }
+    })
+    vi.stubGlobal('fetch', chatFetchMock)
 
     const { useCopilot } = await import('../../app/composables/use-copilot')
     const copilot = useCopilot()
@@ -36,16 +54,20 @@ describe('useCopilot', () => {
 
     await copilot.sendMessage('hello')
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
+    expect(chatFetchMock).toHaveBeenCalledWith(
       '/api/insights/chat',
       expect.objectContaining({
-        body: expect.objectContaining({
-          question: 'hello',
-          sessionId: undefined
-        })
+        method: 'POST'
       })
     )
+    const chatBody = JSON.parse(chatFetchMock.mock.calls[0]?.[1]?.body as string)
+    expect(chatBody).toEqual(
+      expect.objectContaining({
+        question: 'hello',
+        stream: true
+      })
+    )
+    expect(chatBody).not.toHaveProperty('sessionId')
     expect(copilot.chatHistory.value.at(-1)).toEqual({
       role: 'assistant',
       content: 'assistant reply'

@@ -41,7 +41,7 @@ export default defineNuxtConfig({
   },
   vite: {
     optimizeDeps: {
-      include: ['@formkit/auto-animate/vue', 'marked', 'dompurify']
+      include: ['@formkit/auto-animate/vue', 'marked', 'dompurify', 'lucide-vue-next']
     }
   },
   devServer: {
