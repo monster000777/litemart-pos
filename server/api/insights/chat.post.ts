@@ -8,6 +8,8 @@ import {
 import {
   executeAiTextRequest,
   executeAiTextStreamRequest,
+  executeDifyTextRequest,
+  executeDifyTextStreamRequest,
   getAiErrorMessage
 } from '~~/server/utils/ai-client'
 import { resolveAiConfig } from '~~/server/utils/ai-config'
@@ -62,26 +64,21 @@ export default defineEventHandler(async (event) => {
 
     const config = useRuntimeConfig(event)
     const userId = event.context.auth?.user?.id
-    const { aiApiKey, aiModel, candidateUrls, isMiniMaxProvider, legacyCandidateUrls } =
-      resolveAiConfig(config)
+    const aiConfig = resolveAiConfig(config)
+    const {
+      aiApiKey,
+      aiModel,
+      candidateUrls,
+      isMiniMaxProvider,
+      legacyCandidateUrls,
+      isDifyProvider,
+      difyApiKey,
+      difyApiUrl,
+      difyAppId
+    } = aiConfig
 
     if (sessionId) {
       await requireOwnedChatSession(prisma, sessionId, userId)
-    }
-
-    if (!aiApiKey && wantsStream) {
-      writeSseHeaders(event)
-      writeSse(event, { type: 'error', message: 'AI API Key is not configured.' })
-      writeSse(event, { type: 'done' })
-      event.node.res.end()
-      return
-    }
-
-    if (!aiApiKey) {
-      return {
-        reply:
-          '系统未配置 AI API Key，无法进行数据分析。请配置 `NUXT_AI_API_KEY`（或兼容的 `NUXT_MINIMAX_API_KEY`）。'
-      }
     }
 
     const now = new Date()
@@ -153,6 +150,97 @@ export default defineEventHandler(async (event) => {
       recent7DaysProductStats: productStats,
       lowStockWarnings: lowStockProducts,
       recentAuditLogs: recentLogs
+    }
+
+    // ─── Dify 分支 ───────────────────────────────────────────────
+    if (isDifyProvider) {
+      if (!difyApiKey) {
+        const message = 'Dify API Key is not configured. Please set NUXT_DIFY_API_KEY.'
+        if (wantsStream) {
+          writeSseHeaders(event)
+          writeSse(event, { type: 'error', message })
+          writeSse(event, { type: 'done' })
+          event.node.res.end()
+          return
+        }
+        throw createError({ statusCode: 500, message })
+      }
+
+      const difyUser = difyAppId ? `user_${difyAppId}:${userId || 'anonymous'}` : `user_${userId || 'anonymous'}`
+
+      const difyRequestBase = {
+        difyApiKey,
+        difyApiUrl,
+        query: question,
+        user: difyUser,
+        inputs: {
+          report_time: contextData.reportTime,
+          today_hourly_stats: JSON.stringify(contextData.todayHourlyStats),
+          recent7days_product_stats: JSON.stringify(contextData.recent7DaysProductStats),
+          low_stock_warnings: JSON.stringify(contextData.lowStockWarnings),
+          recent_audit_logs: JSON.stringify(contextData.recentAuditLogs)
+        }
+      }
+
+      if (wantsStream) {
+        writeSseHeaders(event)
+
+        try {
+          const { text: reply, remoteFailures } = await executeDifyTextStreamRequest(
+            difyRequestBase,
+            {
+              onText: (delta) => writeSse(event, { type: 'delta', delta })
+            }
+          )
+
+          if (!reply) {
+            const errMessage =
+              remoteFailures.at(-1)?.replace(/^[^:]+:\s*/, '') || 'Dify returned an empty response.'
+            writeSse(event, { type: 'error', message: errMessage })
+          } else if (sessionId && userId) {
+            await persistChatExchange(prisma, sessionId, userId, question, reply)
+          }
+
+          writeSse(event, { type: 'done' })
+        } catch (error) {
+          writeSse(event, { type: 'error', message: getAiErrorMessage(error) || 'Chat failed.' })
+          writeSse(event, { type: 'done' })
+        } finally {
+          event.node.res.end()
+        }
+
+        return
+      }
+
+      // 非流式
+      const { text: reply, remoteFailures } = await executeDifyTextRequest(difyRequestBase)
+
+      if (!reply) {
+        const errMessage =
+          remoteFailures.at(-1)?.replace(/^[^:]+:\s*/, '') || 'Dify returned an empty response.'
+        throw createError({ statusCode: 500, message: errMessage })
+      }
+
+      if (sessionId && userId) {
+        await persistChatExchange(prisma, sessionId, userId, question, reply)
+      }
+
+      return { reply }
+    }
+
+    // ─── MiniMax / OpenAI fallback ──────────────────────────────
+    if (!aiApiKey) {
+      if (wantsStream) {
+        writeSseHeaders(event)
+        writeSse(event, { type: 'error', message: 'AI API Key is not configured.' })
+        writeSse(event, { type: 'done' })
+        event.node.res.end()
+        return
+      }
+      return {
+        reply:
+          '系统未配置 AI API Key，无法进行数据分析。请配置 `NUXT_AI_API_KEY`（或兼容的 `NUXT_MINIMAX_API_KEY`）。'
+      }
     }
 
     const systemPrompt = `${SYSTEM_PROMPT_TEMPLATE.replace(

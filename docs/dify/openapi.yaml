@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: LiteMart POS · Dify 工具集
+  description: |
+    供 Dify Agent 调用的 LiteMart POS 业务数据接口。
+    所有接口返回货币单位为人民币（元），金额保留两位小数。
+  version: 1.0.0
+
+servers:
+  - url: https://litemart.example.com
+    description: Replace with your public LiteMart POS API origin before importing into Dify.
+
+security:
+  - DifyToolBearer: []
+
+paths:
+  /api/insights/logs:
+    get:
+      operationId: getLogs
+      summary: 查询最近操作审计日志
+      description: |
+        返回 LiteMart POS 最近的审计日志（操作记录），供 AI 了解门店近期发生的事件。
+        常见 action：ORDER_CREATED / ORDER_REFUNDED / STOCK_ADJUSTED / PRODUCT_CREATED 等。
+      tags:
+        - 运营
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+          description: 返回最近多少条日志，默认10条
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action:
+                          type: string
+                          description: 操作类型
+                        detail:
+                          type: string
+                          description: 操作详情
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: 操作时间（ISO 8601）
+                    description: 审计日志列表，按时间倒序
+
+  /api/insights/low-stock:
+    get:
+      operationId: getLowStock
+      summary: 查询当前低库存商品清单
+      description: |
+        返回所有 stock <= minStock 的商品，包含供应商信息、近30天日均销量、可售天数、建议补货量。
+        - 低库存判定：stock <= minStock（不以其他"安全阈值"为准）
+        - 建议补货量公式：max(0, minStock × 2 − stock)
+        - 近30天无动销商品，sellable_days 为 null，标注「动销未知」
+      tags:
+        - 库存
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: 低库存商品数量
+                  low_stock_warnings:
+                    type: array
+                    description: 低库存商品列表，按 stock 升序排列
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: 商品名称
+                        sku:
+                          type: string
+                          description: 商品SKU
+                        stock:
+                          type: integer
+                          description: 当前库存数量
+                        min_stock:
+                          type: integer
+                          description: 最低库存阈值
+                        supplier_name:
+                          type: string
+                          nullable: true
+                          description: 供应商名称
+                        supplier_contact:
+                          type: string
+                          nullable: true
+                          description: 供应商联系方式
+                        avg_daily_sales_last30d:
+                          type: number
+                          description: 近30天日均销量
+                        sellable_days:
+                          type: integer
+                          nullable: true
+                          description: 按当前库存可售天数；近30天无动销时为 null
+                        suggested_reorder_qty:
+                          type: integer
+                          description: 建议补货量，计算公式 max(0, minStock × 2 − stock)
+
+  /api/insights/sales:
+    get:
+      operationId: getSales
+      summary: 查询近7天销售数据与退款率
+      description: |
+        返回今日分时订单流量、近7天商品维度销量/金额、退款率。
+        - 退款率 = 退款数量 / (销售数量 + 退款数量) × 100%
+        - 当 销售数量 + 退款数量 = 0 时，退款率为 null（无退款率）
+      tags:
+        - 销售
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  report_time:
+                    type: string
+                    description: 数据生成时间（本地中文格式）
+                  today_hourly_stats:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        orders:
+                          type: integer
+                          description: 当日该小时成交订单数
+                        revenue:
+                          type: number
+                          description: 当日该小时成交金额（元）
+                    description: 键为小时（0-23），值为该小时订单统计
+                  overall_refund_rate_pct:
+                    type: number
+                    nullable: true
+                    description: 整体退款率（%），无退款时为 null
+                  product_stats:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        sold_qty:
+                          type: integer
+                          description: 近7天累计销售数量
+                        sold_amount:
+                          type: number
+                          description: 近7天累计销售金额（元）
+                        refunded_qty:
+                          type: integer
+                          description: 近7天累计退款数量
+                    description: 键为商品名称，值为该商品近7天统计
+
+components:
+  securitySchemes:
+    DifyToolBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: DifyToolToken
+      description: Use the value of NUXT_DIFY_TOOL_TOKEN.

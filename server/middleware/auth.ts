@@ -13,8 +13,16 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/api/auth/send-change-phone-otp'
 ])
 
+const DIFY_TOOL_PATHS = new Set([
+  '/api/insights/logs',
+  '/api/insights/low-stock',
+  '/api/insights/sales'
+])
+
+const normalizePathname = (pathname: string) => pathname.replace(/\/$/, '')
+
 export default defineEventHandler(async (event) => {
-  const pathname = getRequestURL(event).pathname
+  const pathname = normalizePathname(getRequestURL(event).pathname)
   const method = event.method.toUpperCase()
 
   if (!pathname.startsWith('/api/')) {
@@ -23,11 +31,41 @@ export default defineEventHandler(async (event) => {
 
   await ensureSchemaBootstrapped()
 
-  if (PUBLIC_AUTH_PATHS.has(pathname) || PUBLIC_AUTH_PATHS.has(pathname.replace(/\/$/, ''))) {
+  if (PUBLIC_AUTH_PATHS.has(pathname)) {
     return
   }
 
-  const authSecret = String(useRuntimeConfig(event).authSecret || '').trim()
+  const runtimeConfig = useRuntimeConfig(event)
+
+  if (method === 'GET' && DIFY_TOOL_PATHS.has(pathname)) {
+    const expectedToolToken = String(runtimeConfig.difyToolToken || '').trim()
+    if (!expectedToolToken) {
+      throw createError({
+        statusCode: 503,
+        statusMessage: 'Service Unavailable',
+        message: 'NUXT_DIFY_TOOL_TOKEN is not configured.'
+      })
+    }
+
+    const authHeader = getRequestHeader(event, 'authorization')
+    const bearerToken =
+      typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        ? authHeader.slice('Bearer '.length).trim()
+        : ''
+    const headerToken = String(getRequestHeader(event, 'x-dify-tool-token') || '').trim()
+
+    if (bearerToken === expectedToolToken || headerToken === expectedToolToken) {
+      return
+    }
+
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: 'Invalid Dify tool token.'
+    })
+  }
+
+  const authSecret = String(runtimeConfig.authSecret || '').trim()
   if (!authSecret) {
     throw createError({
       statusCode: 500,
