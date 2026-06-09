@@ -1,7 +1,11 @@
 import { H3Error } from 'h3'
 import { ORDER_STATUS } from '~~/shared/constants/order'
 import { prisma } from '~~/server/lib/prisma'
-import { executeAiTextRequest } from '~~/server/utils/ai-client'
+import {
+  executeAiTextRequest,
+  executeDifyTextRequest,
+  getAiErrorMessage
+} from '~~/server/utils/ai-client'
 import { resolveAiConfig } from '~~/server/utils/ai-config'
 
 const SYSTEM_PROMPT = `
@@ -33,8 +37,18 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const nonce = typeof query.nonce === 'string' ? query.nonce.trim() : ''
     const config = useRuntimeConfig(event)
-    const { aiApiKey, aiModel, candidateUrls, isMiniMaxProvider, legacyCandidateUrls } =
-      resolveAiConfig(config)
+    const aiConfig = resolveAiConfig(config)
+    const {
+      aiApiKey,
+      aiModel,
+      candidateUrls,
+      isMiniMaxProvider,
+      legacyCandidateUrls,
+      isDifyProvider,
+      difyApiKey,
+      difyApiUrl,
+      difyAppId
+    } = aiConfig
 
     const now = new Date()
     const weekStart = getWeekStart(now)
@@ -171,25 +185,56 @@ ${JSON.stringify(payload)}
       ].join('\n')
     }
 
-    const { text: summaryText, remoteFailures } = aiApiKey
-      ? await executeAiTextRequest({
-          aiApiKey,
-          aiModel,
-          candidateUrls,
-          legacyCandidateUrls,
-          isMiniMaxProvider,
-          openAiMessages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt }
-          ],
-          legacyMessages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
-          systemPrompt: SYSTEM_PROMPT,
-          botName: 'LiteMart POS',
-          temperature: 0.3,
-          maxTokens: 1500,
-          preferLegacyFirst: true
+    let summaryText = ''
+    let remoteFailures: string[] = []
+    let source: 'dify' | 'remote' | 'fallback' = 'fallback'
+
+    if (isDifyProvider) {
+      if (!difyApiKey) {
+        remoteFailures = ['Dify API Key is not configured. Please set NUXT_DIFY_API_KEY.']
+      } else {
+        const difyUser = difyAppId ? `user_${difyAppId}:ai-summary` : 'user_ai-summary'
+        const { text, remoteFailures: difyFailures } = await executeDifyTextRequest({
+          difyApiKey,
+          difyApiUrl,
+          query: '请根据以下数据生成周报，严格按照你被设定的角色输出经营红榜、库存预警、策略建议三个模块。',
+          user: difyUser,
+          inputs: {
+            report_time: now.toLocaleString('zh-CN'),
+            week_start: weekStart.toLocaleString('zh-CN'),
+            week_end: now.toLocaleString('zh-CN'),
+            weekly_order_count: String(weeklyOrderCount),
+            weekly_sales: JSON.stringify(weeklySales),
+            top3_by_sales_amount: JSON.stringify(top3BySalesAmount),
+            inventory_warnings: JSON.stringify(inventoryWarnings)
+          }
         })
-      : { text: '', remoteFailures: [] }
+        summaryText = text
+        remoteFailures = difyFailures
+        source = text ? 'dify' : 'fallback'
+      }
+    } else if (aiApiKey) {
+      const result = await executeAiTextRequest({
+        aiApiKey,
+        aiModel,
+        candidateUrls,
+        legacyCandidateUrls,
+        isMiniMaxProvider,
+        openAiMessages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        legacyMessages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
+        systemPrompt: SYSTEM_PROMPT,
+        botName: 'LiteMart POS',
+        temperature: 0.3,
+        maxTokens: 1500,
+        preferLegacyFirst: true
+      })
+      summaryText = result.text
+      remoteFailures = result.remoteFailures
+      source = result.text ? 'remote' : 'fallback'
+    }
 
     let summary = summaryText
     const usedFallback = !summary
@@ -201,7 +246,7 @@ ${JSON.stringify(payload)}
       summary,
       batch: nonce || String(Date.now()),
       generatedAt: now.toISOString(),
-      source: usedFallback ? 'fallback' : 'remote',
+      source,
       failureCount: remoteFailures.length,
       weekStart,
       weeklyOrderCount,

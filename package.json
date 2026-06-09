@@ -19,7 +19,8 @@
     "prisma:seed": "prisma db seed",
     "test:setup": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db prisma db push --accept-data-loss --skip-generate",
     "test": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db npm run test:setup && vitest run --fileParallelism false",
-    "test:watch": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db vitest --fileParallelism false"
+    "test:watch": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db vitest --fileParallelism false",
+    "test:dify": "tsx scripts/test-dify.mjs"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -27,6 +28,7 @@
     "@prisma/client": "^5.22.0",
     "@types/dompurify": "^3.0.5",
     "@types/marked": "^5.0.2",
+    "dify-client": "^2.3.2",
     "dompurify": "^3.4.1",
     "lucide-vue-next": "^0.469.0",
     "marked": "^18.0.2",

@@ -13,7 +13,11 @@ export default defineNuxtConfig({
     aiModel: '',
     minimaxApiKey: '',
     minimaxApiUrl: '',
-    minimaxModel: ''
+    minimaxModel: '',
+    difyApiKey: '',
+    difyApiUrl: '',
+    difyAppId: '',
+    difyToolToken: ''
   },
   app: {
     head: {
