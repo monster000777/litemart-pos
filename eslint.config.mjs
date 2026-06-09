@@ -10,8 +10,10 @@ export default tseslint.config(
       '.nuxt/**',
       '.output/**',
       'dist/**',
+      'dist-electron/**',
       'coverage/**',
       'node_modules/**',
+      'electron/**',
       'miniapp/dist/**',
       'miniapp/unpackage/**',
       'miniapp/node_modules/**'

@@ -2,6 +2,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
+  sourcemap: {
+    server: false,
+    client: false
+  },
   modules: ['@nuxtjs/tailwindcss', '@pinia/nuxt', 'pinia-plugin-persistedstate/nuxt'],
   css: ['~/assets/css/tailwind.css'],
   runtimeConfig: {

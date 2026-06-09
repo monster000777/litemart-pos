@@ -37,3 +37,7 @@ doc/
 
 # Claude settings (local)
 .claude/settings.local.json
+
+# Electron build outputs
+dist-electron
+

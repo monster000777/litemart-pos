@@ -1,7 +1,11 @@
 {
   "name": "litemart-pos",
+  "version": "1.0.0",
+  "description": "LiteMart-POS收银系统",
+  "author": "LiteMart Team",
   "type": "module",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -19,7 +23,9 @@
     "prisma:seed": "prisma db seed",
     "test:setup": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db prisma db push --accept-data-loss --skip-generate",
     "test": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db npm run test:setup && vitest run --fileParallelism false",
-    "test:watch": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db vitest --fileParallelism false"
+    "test:watch": "cross-env NODE_ENV=test TEST_DATABASE_URL=file:./test.db DATABASE_URL=file:./test.db vitest --fileParallelism false",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "nuxt build && electron-builder"
   },
   "dependencies": {
     "@formkit/auto-animate": "^0.8.2",
@@ -41,7 +47,10 @@
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^25.9.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.5.1",
@@ -52,9 +61,55 @@
     "tsx": "^4.19.2",
     "typescript-eslint": "^8.46.2",
     "vitest": "^4.1.6",
-    "vue-eslint-parser": "^10.2.0"
+    "vue-eslint-parser": "^10.2.0",
+    "wait-on": "^7.2.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "build": {
+    "appId": "com.litemart.pos",
+    "productName": "LiteMart POS",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "package.json",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".output",
+        "to": "nuxt-server",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "prisma/release.db",
+        "to": "prisma/release.db"
+      },
+      {
+        "from": ".env",
+        "to": ".env"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LiteMart POS"
+    }
   }
 }
+
