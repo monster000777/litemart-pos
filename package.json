@@ -81,7 +81,9 @@
       {
         "from": ".output",
         "to": "nuxt-server",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "prisma/release.db",
@@ -112,4 +114,3 @@
     }
   }
 }
-

@@ -1,6 +1,6 @@
 # LiteMart POS
 
-基于 `Nuxt 4 + Prisma + SQLite + Tailwind CSS` 的轻量零售收银系统，适合课程实训、小型门店演示和本地开发。
+基于 `Nuxt 4 + Prisma + SQLite + Tailwind CSS` 的轻量零售收银系统，支持桌面端与小程序端，适合课程实训、小型门店演示和本地开发。
 
 当前已包含：
 
@@ -9,6 +9,7 @@
 - 会员、积分、会员价
 - 用户、角色权限、审计日志
 - AI 经营分析与智能客服会话持久化
+- `Electron` 桌面端客户端
 - `uni-app` 小程序端前台 MVP
 
 ---
@@ -118,6 +119,19 @@ npm run build
 npm run preview
 ```
 
+### 桌面端开发与打包 (Electron)
+
+```bash
+# 复制/准备发布用的干净数据库模板 release.db
+copy prisma\dev.db prisma\release.db
+
+# 启动桌面开发调试
+npm run electron:dev
+
+# 构建打包桌面端安装包 (.exe)
+npm run electron:build
+```
+
 ### Docker 快速部署
 
 推荐使用 Docker 进行生产环境部署，以确保环境一致性并简化初始化流程。
@@ -219,6 +233,8 @@ npm run dev:mp-weixin
 npm run dev
 npm run build
 npm run preview
+npm run electron:dev
+npm run electron:build
 ```
 
 ### 代码检查
@@ -348,6 +364,7 @@ npx tsx --tsconfig .nuxt/tsconfig.json scripts/test-membership.ts
 app/                  # 前端 UI 层 (Nuxt Pages, Components, Composables)
 server/               # 后端业务层 (Nitro API, Server Middleware, Services)
 prisma/               # 数据库层 (Schema 定义、数据迁移脚本、Seed 数据)
+electron/             # 桌面端 (Electron 主进程及预加载脚本)
 shared/               # 公共定义 (前后端共用的常量、类型定义)
 scripts/              # 工具脚本 (数据库健康检查、会员测试等)
 tests/                # 测试套件 (集成测试与单元测试)
