@@ -91,7 +91,7 @@ const logout = async () => {
       :class="sidebarCollapsed ? 'w-20' : 'w-64'"
     >
       <div class="flex h-full flex-col px-4 py-6">
-        <div class="mb-4 flex items-center gap-3 px-2">
+        <div class="mb-4 flex shrink-0 items-center gap-3 px-2">
           <div
             class="flex min-w-0 items-center gap-3"
             :class="sidebarCollapsed ? 'justify-center' : ''"
@@ -121,7 +121,10 @@ const logout = async () => {
           </div>
         </div>
 
-        <nav class="mt-6 space-y-1.5">
+        <nav
+          class="mt-6 flex-1 overflow-y-auto min-h-0 space-y-1.5"
+          :class="sidebarCollapsed ? 'scrollbar-none' : 'sidebar-nav'"
+        >
           <NuxtLink
             v-for="item in visibleNavItems"
             :key="item.to"
@@ -155,7 +158,7 @@ const logout = async () => {
           </NuxtLink>
         </nav>
 
-        <div class="mt-auto space-y-3">
+        <div class="mt-auto shrink-0 space-y-3">
           <button
             type="button"
             class="inline-flex w-full items-center rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm text-slate-600 transition hover:bg-zinc-50 hover:text-slate-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-50"
