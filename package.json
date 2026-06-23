@@ -28,18 +28,22 @@
     "electron:build": "nuxt build && electron-builder"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.51",
+    "@ai-sdk/vue": "^3.0.208",
     "@formkit/auto-animate": "^0.8.2",
     "@pinia/nuxt": "^0.11.2",
     "@prisma/client": "^5.22.0",
     "@types/dompurify": "^3.0.5",
     "@types/marked": "^5.0.2",
+    "ai": "^6.0.208",
     "dompurify": "^3.4.1",
     "lucide-vue-next": "^0.469.0",
     "marked": "^18.0.2",
     "nuxt": "^4.4.2",
     "pinia-plugin-persistedstate": "^4.5.0",
     "vue": "^3.5.32",
-    "vue-router": "^5.0.4"
+    "vue-router": "^5.0.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

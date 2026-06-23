@@ -1,3 +1,5 @@
+import { computed, effectScope, ref, watch, type Ref } from 'vue'
+
 export interface CopilotMessage {
   id?: string
   role: 'user' | 'assistant'
@@ -21,13 +23,30 @@ export interface CopilotSession {
   isLocal?: boolean
 }
 
+type UIMessagePart = { type: 'text'; text: string } | { type: string; [key: string]: unknown }
+
+type UIMessageLike = {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  parts: UIMessagePart[]
+}
+
+type ChatLike = {
+  id: string
+  messages: UIMessageLike[]
+  status: string
+  sendMessage: (input: { text: string }) => Promise<void>
+  stop: () => Promise<void>
+  clear: () => void
+}
+
 const DEFAULT_SESSION_TITLE = '新对话'
 
 let initialized = false
 
-const sessions = ref<CopilotSession[]>([])
-const activeSessionId = ref<string>('')
-const chatInput = ref('')
+const sessions: Ref<CopilotSession[]> = ref<CopilotSession[]>([])
+const activeSessionId: Ref<string> = ref<string>('')
+const chatInput: Ref<string> = ref<string>('')
 
 const mapRemoteSession = <
   T extends {
@@ -52,15 +71,135 @@ const mapRemoteSession = <
 const isDraftSession = (session: CopilotSession) =>
   (session.messageCount ?? session.messages.length) === 0
 
+// 懒加载 SDK —— 避免 SSR 阶段拉入 Node-only 依赖
+const loadSdk = async () => {
+  const vueSdk = await import('@ai-sdk/vue')
+  const aiSdk = await import('ai')
+  return { Chat: vueSdk.Chat, DefaultChatTransport: aiSdk.DefaultChatTransport }
+}
+
+const assistantContent = (parts: UIMessagePart[]): string =>
+  parts
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('')
+
+const toUiMessages = (messages: CopilotMessage[]): UIMessageLike[] =>
+  messages.map((message, index) => ({
+    id: message.id ?? `${message.role}-${index}`,
+    role: message.role,
+    parts: [{ type: 'text', text: message.content }]
+  }))
+
 export function useCopilot() {
   const activeSession = computed(() =>
     sessions.value.find((session) => session.id === activeSessionId.value)
   )
   const chatHistory = computed(() => activeSession.value?.messages || [])
-  const chatPending = computed(() => activeSession.value?.pending ?? false)
+
+  let chat: ChatLike | null = null
+  let transport: { api: string; body: () => unknown } | null = null
+  let ChatCtor: typeof import('@ai-sdk/vue').Chat | null = null
+  let DefaultChatTransport:
+    | (new (opts: { api: string; body: () => unknown }) => { api: string; body: unknown })
+    | null = null
+
+  const isClient = () => typeof window !== 'undefined'
+
+  // 显式 effectScope —— sendMessage 是 async，watch 必须挂在显式 scope 上才能跨 await 生效
+  const chatScope = effectScope()
+
+  const syncFromChat = (instance: ChatLike) => {
+    const session = activeSession.value
+    if (!session) return
+    session.messages = instance.messages.map((m) => ({
+      id: m.id,
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: assistantContent(m.parts ?? [])
+    }))
+    session.messageCount = session.messages.length
+    session.updatedAt = Date.now()
+  }
+
+  const ensureChat = async () => {
+    if (!isClient()) return null
+    if (chat) return chat
+    const sdk = await loadSdk()
+    ChatCtor = sdk.Chat
+    DefaultChatTransport = sdk.DefaultChatTransport
+    transport = new DefaultChatTransport({
+      api: '/api/insights/chat',
+      body: () => ({ sessionId: activeSessionId.value || undefined })
+    })
+    chat = new ChatCtor({
+      id: activeSessionId.value || 'pending',
+      transport,
+      onError: (error: unknown) => {
+        const session = activeSession.value
+        if (!session) return
+        const lastMessage = session.messages[session.messages.length - 1]
+        if (lastMessage && lastMessage.role === 'assistant') {
+          if (lastMessage.content) {
+            lastMessage.content += `\n\n> ⚠️ ${(error as Error)?.message ?? error ?? '对话失败'}`
+          } else {
+            lastMessage.content = `[发送失败] ${(error as Error)?.message ?? error ?? '对话失败'}`
+          }
+          session.updatedAt = Date.now()
+        }
+      },
+      onFinish: () => {
+        if (chat) syncFromChat(chat)
+        stopPolling()
+      }
+    })
+    return chat
+  }
+
+  const pendingFlag: Ref<boolean> = ref(false)
+  const chatPending = computed(() => pendingFlag.value || !!activeSession.value?.pending)
+
+  // 显式 scope 内挂 watch —— 必须同步执行才能建立响应式追踪
+  let watchSetup = false
+  const setupMessageSync = (instance: ChatLike) => {
+    if (watchSetup) return
+    watchSetup = true
+    chatScope.run(() => {
+      watch(
+        () => instance.messages,
+        () => syncFromChat(instance),
+        { deep: true }
+      )
+      watch(
+        () => instance.status,
+        (status) => {
+          pendingFlag.value = status === 'submitted' || status === 'streaming'
+          if (status === 'submitted' || status === 'streaming') {
+            startPolling()
+          } else {
+            stopPolling()
+          }
+        }
+      )
+    })
+  }
+
+  // 轮询兜底 —— 如果 watch 因为某些原因没触发，强制每 200ms 同步一次
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+  const startPolling = () => {
+    if (pollTimer || !isClient()) return
+    pollTimer = setInterval(() => {
+      if (chat) syncFromChat(chat)
+    }, 200)
+  }
+  const stopPolling = () => {
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+  }
 
   const persistLocalBackup = () => {
-    if (!import.meta.client) return
+    if (!isClient()) return
 
     const serializable = sessions.value.map((session) => ({
       id: session.id,
@@ -101,7 +240,9 @@ export function useCopilot() {
     if (initialized) return
     initialized = true
 
-    if (!import.meta.client) return
+    if (!isClient()) return
+
+    const chatInstance = await ensureChat()
 
     try {
       const list = await syncSessionsFromDb()
@@ -115,6 +256,9 @@ export function useCopilot() {
               : mapRemoteSession({ ...session, messages: [] })
           )
           activeSessionId.value = firstSession.id
+          if (chatInstance && firstSession.messages.length > 0) {
+            chatInstance.messages = toUiMessages(firstSession.messages)
+          }
         } else {
           sessions.value = list.map((session) => mapRemoteSession({ ...session, messages: [] }))
           activeSessionId.value = list[0].id
@@ -247,6 +391,15 @@ export function useCopilot() {
     session.updatedAt = Date.now()
     chatInput.value = ''
 
+    if (chat) {
+      try {
+        await chat.stop()
+        chat.messages = []
+      } catch {
+        // 静默失败 —— 本地状态已重置
+      }
+    }
+
     if (session.isLocal) return
 
     try {
@@ -266,12 +419,27 @@ export function useCopilot() {
     if (!session) return
 
     activeSessionId.value = id
+    if (chat) {
+      try {
+        await chat.stop()
+        chat.messages = toUiMessages(session.messages)
+      } catch {
+        // 切换失败时静默 —— 本地 activeSessionId 已切换
+      }
+    }
     if (session.isLocal || session.messages.length > 0) return
 
     const detail = await loadSessionDetail(id)
     if (detail) {
       const idx = sessions.value.findIndex((item) => item.id === id)
       if (idx !== -1) sessions.value[idx] = detail
+      if (chat) {
+        try {
+          chat.messages = toUiMessages(detail.messages)
+        } catch {
+          // 静默
+        }
+      }
     }
   }
 
@@ -281,15 +449,9 @@ export function useCopilot() {
     const session = activeSession.value
     const normalizedText = text.trim()
     const isFirstMessage = session.messages.length === 0
-    let assistantMessageIndex = -1
+    const titleForFirstMessage =
+      normalizedText.slice(0, 15) + (normalizedText.length > 15 ? '...' : '')
 
-    if (isFirstMessage) {
-      session.title = normalizedText.slice(0, 15) + (normalizedText.length > 15 ? '...' : '')
-    }
-
-    session.messages.push({ role: 'user', content: normalizedText })
-    session.messageCount = session.messages.length
-    session.updatedAt = Date.now()
     chatInput.value = ''
     session.pending = true
 
@@ -297,82 +459,27 @@ export function useCopilot() {
       const remoteSession = await ensureRemoteSession(session)
       const sessionId = remoteSession?.isLocal ? undefined : remoteSession?.id
 
-      session.messages.push({ role: 'assistant', content: '' })
-      assistantMessageIndex = session.messages.length - 1
+      const instance = await ensureChat()
+      if (!instance) {
+        throw new Error('Chat instance unavailable')
+      }
+      setupMessageSync(instance) // idempotent —— 内部判断是否已挂 watch
+
+      // 历史上下文（不含本条新消息，sendMessage 会自动追加）
+      instance.messages = toUiMessages(session.messages)
+
+      // 立即在本地反映用户消息（不依赖 watch 时序），提升体感
+      session.messages.push({ role: 'user', content: normalizedText })
       session.messageCount = session.messages.length
-
-      const response = await fetch('/api/insights/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: normalizedText,
-          history: session.messages.slice(0, -2).map((message) => ({
-            role: message.role,
-            content: message.content
-          })),
-          sessionId,
-          stream: true
-        })
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error(response.statusText || 'Stream response failed')
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      const handleLine = (line: string) => {
-        const normalized = line.trim()
-        if (!normalized.startsWith('data:')) return false
-
-        const payload = JSON.parse(normalized.slice(5)) as {
-          type?: 'delta' | 'done' | 'error'
-          delta?: string
-          message?: string
-        }
-
-        if (payload.type === 'delta' && payload.delta) {
-          const currentMessage = session.messages[assistantMessageIndex]
-          if (currentMessage) {
-            currentMessage.content += payload.delta
-          }
-        }
-
-        if (payload.type === 'error') {
-          throw new Error(payload.message || 'Stream response failed')
-        }
-
-        return payload.type === 'done'
-      }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split(/\r?\n/)
-        buffer = lines.pop() || ''
-
-        let shouldStop = false
-        for (const line of lines) {
-          if (handleLine(line)) {
-            shouldStop = true
-            break
-          }
-        }
-        if (shouldStop) break
-      }
-
-      if (buffer) handleLine(buffer)
-
-      if (!session.messages[assistantMessageIndex]?.content) {
-        throw new Error('AI returned an empty response')
-      }
-
       session.updatedAt = Date.now()
+      if (isFirstMessage) session.title = titleForFirstMessage
 
+      await instance.sendMessage({ text: normalizedText })
+
+      // 强制最终同步 —— 兜底（如果 watch 因为某些原因没触发）
+      syncFromChat(instance)
+
+      // 持久化首条消息的标题
       if (isFirstMessage && sessionId) {
         await $fetch(`/api/chat-sessions/${sessionId}`, {
           method: 'PATCH',
@@ -382,15 +489,13 @@ export function useCopilot() {
     } catch (error: unknown) {
       const err = error as ApiErrorLike
       const msg = err.data?.message || err.message || '发送失败'
-      const assistantMessage =
-        assistantMessageIndex !== -1 ? session.messages[assistantMessageIndex] : undefined
+      const lastMessage = session.messages[session.messages.length - 1]
 
-      if (assistantMessage?.content) {
-        assistantMessage.content += `\n\n> ⚠️ ${msg}`
+      if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content) {
+        lastMessage.content += `\n\n> ⚠️ ${msg}`
+      } else if (lastMessage && lastMessage.role === 'assistant') {
+        lastMessage.content = `[发送失败] ${msg}`
       } else {
-        if (assistantMessageIndex !== -1) {
-          session.messages.splice(assistantMessageIndex, 1)
-        }
         session.messages.push({ role: 'assistant', content: `[发送失败] ${msg}` })
       }
 

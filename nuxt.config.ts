@@ -14,10 +14,7 @@ export default defineNuxtConfig({
     aiProvider: '',
     aiApiKey: '',
     aiApiUrl: '',
-    aiModel: '',
-    minimaxApiKey: '',
-    minimaxApiUrl: '',
-    minimaxModel: ''
+    aiModel: ''
   },
   app: {
     head: {

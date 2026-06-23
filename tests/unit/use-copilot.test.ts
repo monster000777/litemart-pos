@@ -1,19 +1,88 @@
-import { computed, effectScope, ref, watch } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@ai-sdk/vue', async () => {
+  const { ref } = await import('vue')
+  class Chat {
+    id: string
+    private _messages: ReturnType<typeof ref<unknown[]>>
+    private _status: ReturnType<typeof ref<string>>
+    sendMessage: (input: { text: string }) => Promise<void>
+    stop: () => Promise<void>
+    clear: () => void
+    regenerate: () => void
+    addToolResult: (...args: unknown[]) => void
+    addToolOutput: (...args: unknown[]) => void
+    resumeStream: () => void
+
+    constructor({ id }: { id: string }) {
+      this.id = id
+      this._messages = ref<unknown[]>([])
+      this._status = ref<string>('ready')
+      this.sendMessage = vi.fn(async ({ text }: { text: string }) => {
+        this._status.value = 'streaming'
+        const userMessage = {
+          id: `u-${this._messages.value.length + 1}`,
+          role: 'user',
+          parts: [{ type: 'text', text }]
+        }
+        const assistantMessage = {
+          id: `a-${this._messages.value.length + 1}`,
+          role: 'assistant',
+          parts: [{ type: 'text', text: 'assistant reply' }]
+        }
+        this._messages.value = [...this._messages.value, userMessage, assistantMessage]
+        this._status.value = 'ready'
+      })
+      this.stop = vi.fn(async () => {
+        this._status.value = 'ready'
+      })
+      this.clear = vi.fn(() => {
+        this._messages.value = []
+        this._status.value = 'ready'
+      })
+      this.regenerate = vi.fn()
+      this.addToolResult = vi.fn()
+      this.addToolOutput = vi.fn()
+      this.resumeStream = vi.fn()
+    }
+
+    get messages() {
+      return this._messages.value
+    }
+    set messages(next: unknown[]) {
+      this._messages.value = next
+    }
+    get status() {
+      return this._status.value
+    }
+  }
+  return { Chat }
+})
+
+vi.mock('ai', () => {
+  class DefaultChatTransport {
+    api: string
+    body: () => unknown
+    options: { api: string; body: () => unknown }
+    constructor(opts: { api: string; body: () => unknown }) {
+      this.api = opts.api
+      this.body = opts.body
+      this.options = opts
+    }
+  }
+  return { DefaultChatTransport }
+})
 
 describe('useCopilot', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
-    vi.stubGlobal('ref', ref)
-    vi.stubGlobal('computed', computed)
-    vi.stubGlobal('effectScope', effectScope)
-    vi.stubGlobal('watch', watch)
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(),
       setItem: vi.fn(),
       removeItem: vi.fn()
     })
+    vi.stubGlobal('window', { localStorage: {} })
   })
 
   afterEach(() => {
@@ -27,25 +96,6 @@ describe('useCopilot', () => {
       .mockRejectedValueOnce(new Error('create failed again'))
     vi.stubGlobal('$fetch', remoteFetchMock)
 
-    const encoder = new TextEncoder()
-    const chunks = [
-      encoder.encode(
-        'data: {"type":"delta","delta":"assistant reply"}\n\ndata: {"type":"done"}\n\n'
-      )
-    ]
-    let readCount = 0
-    const chatFetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      body: {
-        getReader: () => ({
-          read: vi.fn(async () =>
-            readCount++ === 0 ? { done: false, value: chunks[0] } : { done: true }
-          )
-        })
-      }
-    })
-    vi.stubGlobal('fetch', chatFetchMock)
-
     const { useCopilot } = await import('../../app/composables/use-copilot')
     const copilot = useCopilot()
 
@@ -54,23 +104,17 @@ describe('useCopilot', () => {
 
     await copilot.sendMessage('hello')
 
-    expect(chatFetchMock).toHaveBeenCalledWith(
-      '/api/insights/chat',
-      expect.objectContaining({
-        method: 'POST'
-      })
-    )
-    const chatBody = JSON.parse(chatFetchMock.mock.calls[0]?.[1]?.body as string)
-    expect(chatBody).toEqual(
-      expect.objectContaining({
-        question: 'hello',
-        stream: true
-      })
-    )
-    expect(chatBody).not.toHaveProperty('sessionId')
-    expect(copilot.chatHistory.value.at(-1)).toEqual({
+    // sendMessage 应在本地 local session 上把 user + assistant 写到 session.messages
+    const lastMessages = copilot.chatHistory.value
+    expect(lastMessages.at(-1)).toEqual({
+      id: 'a-1',
       role: 'assistant',
       content: 'assistant reply'
+    })
+    expect(lastMessages.at(-2)).toEqual({
+      id: 'u-1',
+      role: 'user',
+      content: 'hello'
     })
   })
 

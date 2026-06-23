@@ -1,8 +1,8 @@
 import { H3Error } from 'h3'
+import { generateText } from 'ai'
 import { ORDER_STATUS } from '~~/shared/constants/order'
 import { prisma } from '~~/server/lib/prisma'
-import { executeAiTextRequest } from '~~/server/utils/ai-client'
-import { resolveAiConfig } from '~~/server/utils/ai-config'
+import { getBiProvider } from '~~/server/ai/providers'
 
 const SYSTEM_PROMPT = `
 你是一位拥有 10 年经验的零售数据分析专家。
@@ -33,8 +33,7 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event)
     const nonce = typeof query.nonce === 'string' ? query.nonce.trim() : ''
     const config = useRuntimeConfig(event)
-    const { aiApiKey, aiModel, candidateUrls, isMiniMaxProvider, legacyCandidateUrls } =
-      resolveAiConfig(config)
+    const provider = getBiProvider(config)
 
     const now = new Date()
     const weekStart = getWeekStart(now)
@@ -171,28 +170,29 @@ ${JSON.stringify(payload)}
       ].join('\n')
     }
 
-    const { text: summaryText, remoteFailures } = aiApiKey
-      ? await executeAiTextRequest({
-          aiApiKey,
-          aiModel,
-          candidateUrls,
-          legacyCandidateUrls,
-          isMiniMaxProvider,
-          openAiMessages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt }
-          ],
-          legacyMessages: [{ sender_type: 'USER', sender_name: 'user', text: userPrompt }],
-          systemPrompt: SYSTEM_PROMPT,
-          botName: 'LiteMart POS',
-          temperature: 0.3,
-          maxTokens: 1500,
-          preferLegacyFirst: true
-        })
-      : { text: '', remoteFailures: [] }
+    let summary = ''
+    let failureCount = 0
+    let usedFallback = true
 
-    let summary = summaryText
-    const usedFallback = !summary
+    if (provider.isConfigured && provider.model) {
+      try {
+        const { text } = await generateText({
+          model: provider.model,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userPrompt }],
+          temperature: 0.3,
+          maxOutputTokens: 1500
+        })
+        if (text.trim()) {
+          summary = text
+          usedFallback = false
+        }
+      } catch (error) {
+        failureCount = 1
+        console.error('AI summary generation failed:', error)
+      }
+    }
+
     if (usedFallback) {
       summary = buildFallbackSummary()
     }
@@ -202,7 +202,7 @@ ${JSON.stringify(payload)}
       batch: nonce || String(Date.now()),
       generatedAt: now.toISOString(),
       source: usedFallback ? 'fallback' : 'remote',
-      failureCount: remoteFailures.length,
+      failureCount,
       weekStart,
       weeklyOrderCount,
       top3BySalesAmount,

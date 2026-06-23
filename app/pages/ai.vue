@@ -321,11 +321,19 @@ onMounted(async () => {
               <Loader2 class="w-4 h-4 animate-spin text-indigo-600" />
               <span class="text-sm font-medium tracking-wide">正在分析数据...</span>
             </div>
-            <div
-              v-else
-              class="[&>:first-child]:mt-0 [&>:last-child]:mb-0"
-              v-html="formatChatMessage(msg)"
-            ></div>
+            <div v-else class="[&>:first-child]:mt-0 [&>:last-child]:mb-0">
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <ClientOnly v-if="msg.role === 'assistant'" fallback-tag="div">
+                <div v-html="formatChatMessage(msg)"></div>
+                <template #fallback>
+                  <div class="whitespace-pre-wrap">
+                    {{ normalizeAssistantMarkdown(msg.content) }}
+                  </div>
+                </template>
+              </ClientOnly>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div v-else v-html="formatChatMessage(msg)"></div>
+            </div>
           </div>
         </div>
 
