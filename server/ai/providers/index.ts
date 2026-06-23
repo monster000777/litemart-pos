@@ -1,5 +1,5 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import type { LanguageModelV2 } from '@ai-sdk/provider'
+import type { LanguageModelV3 } from '@ai-sdk/provider'
 
 export type RuntimeConfig = {
   aiProvider?: string
@@ -13,7 +13,7 @@ export type BiProviderName = string
 export type BiProvider = {
   isConfigured: boolean
   providerName: BiProviderName
-  model: LanguageModelV2 | null
+  model: LanguageModelV3 | null
 }
 
 const trim = (value: unknown): string => String(value ?? '').trim()
@@ -40,6 +40,6 @@ export const getBiProvider = (config: RuntimeConfig): BiProvider => {
   return {
     isConfigured: true,
     providerName,
-    model: sdkProvider(modelId) as LanguageModelV2
+    model: sdkProvider(modelId) as LanguageModelV3
   }
 }

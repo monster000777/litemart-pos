@@ -1,4 +1,6 @@
 import { computed, effectScope, onScopeDispose, ref, watch, type Ref } from 'vue'
+import type { Chat as VueChat } from '@ai-sdk/vue'
+import type { ChatInit, ChatTransport, HttpChatTransportInitOptions, UIMessage } from 'ai'
 
 export interface CopilotMessage {
   id?: string
@@ -37,7 +39,6 @@ type ChatLike = {
   status: string
   sendMessage: (input: { text: string }) => Promise<void>
   stop: () => Promise<void>
-  clear: () => void
 }
 
 const DEFAULT_SESSION_TITLE = '新对话'
@@ -98,10 +99,14 @@ export function useCopilot() {
   const chatHistory = computed(() => activeSession.value?.messages || [])
 
   let chat: ChatLike | null = null
-  let ChatCtor: typeof import('@ai-sdk/vue').Chat | null = null
-  let DefaultChatTransport:
-    | (new (opts: { api: string; body: () => unknown }) => { api: string; body: unknown })
-    | null = null
+  // 动态 import 的 SDK 构造函数 —— 用 ChatInit 直接定义签名，避开 abstract 类的 ConstructorParameters 限制
+  type ChatMessage = UIMessage<unknown, never, never>
+  type ChatCtorType = new (init: ChatInit<ChatMessage>) => VueChat<ChatMessage>
+  type TransportCtorType = new (
+    opts: HttpChatTransportInitOptions<ChatMessage>
+  ) => ChatTransport<ChatMessage>
+  let ChatCtor: ChatCtorType | null = null
+  let DefaultChatTransport: TransportCtorType | null = null
 
   const isClient = () => typeof window !== 'undefined'
 
@@ -159,7 +164,7 @@ export function useCopilot() {
         if (chat) syncFromChat(chat)
         stopPolling()
       }
-    })
+    }) as ChatLike
     return chat
   }
 

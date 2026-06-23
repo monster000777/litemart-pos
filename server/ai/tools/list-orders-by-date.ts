@@ -24,7 +24,7 @@ export const listOrdersByDateTool = tool({
     // 用本地构造器（与 server/api/insights/overview.get.ts 一致），避免 ISO 字符串按 UTC 解析导致跨时区漏单
     const parseLocal = (value: string) => {
       const [y, m, d] = value.split('-').map(Number)
-      return new Date(y, (m ?? 1) - 1, d ?? 1)
+      return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1)
     }
     const start = parseLocal(startDate)
     start.setHours(0, 0, 0, 0)
