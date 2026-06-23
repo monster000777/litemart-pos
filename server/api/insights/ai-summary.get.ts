@@ -173,8 +173,11 @@ ${JSON.stringify(payload)}
     let summary = ''
     let failureCount = 0
     let usedFallback = true
+    let failureMessage: string | null = null
 
-    if (provider.isConfigured && provider.model) {
+    if (!provider.isConfigured || !provider.model) {
+      failureMessage = '未配置 AI API Key'
+    } else {
       try {
         const { text } = await generateText({
           model: provider.model,
@@ -186,9 +189,12 @@ ${JSON.stringify(payload)}
         if (text.trim()) {
           summary = text
           usedFallback = false
+        } else {
+          failureMessage = 'AI 返回内容为空'
         }
       } catch (error) {
         failureCount = 1
+        failureMessage = error instanceof Error ? error.message : 'AI 调用异常'
         console.error('AI summary generation failed:', error)
       }
     }
@@ -203,6 +209,7 @@ ${JSON.stringify(payload)}
       generatedAt: now.toISOString(),
       source: usedFallback ? 'fallback' : 'remote',
       failureCount,
+      failureMessage,
       weekStart,
       weeklyOrderCount,
       top3BySalesAmount,

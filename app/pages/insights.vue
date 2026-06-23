@@ -314,6 +314,12 @@ onMounted(async () => {
           <p v-if="aiSummary?.batch" class="mt-2 text-xs text-slate-400">
             批次 {{ aiSummary.batch }} · 生成于 {{ aiGeneratedLabel }}
           </p>
+          <p
+            v-if="aiSummary?.source === 'fallback' && aiSummary?.failureMessage"
+            class="mt-1 text-xs text-amber-600"
+          >
+            ⚠ AI 未生成（fallback）：{{ aiSummary.failureMessage }}
+          </p>
         </div>
         <button
           type="button"
@@ -328,6 +334,9 @@ onMounted(async () => {
 
       <div class="min-h-[22rem] rounded-2xl border border-slate-100 bg-zinc-50/70 p-8">
         <div v-if="aiPending" class="space-y-3">
+          <p class="text-xs font-medium text-indigo-600">
+            AI 正在生成周报，通常需要 10-60 秒，请稍候…
+          </p>
           <Skeleton class="h-5 w-1/3" />
           <Skeleton class="h-5 w-full" />
           <Skeleton class="h-5 w-11/12" />

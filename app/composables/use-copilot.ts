@@ -1,4 +1,4 @@
-import { computed, effectScope, ref, watch, type Ref } from 'vue'
+import { computed, effectScope, onScopeDispose, ref, watch, type Ref } from 'vue'
 
 export interface CopilotMessage {
   id?: string
@@ -98,7 +98,6 @@ export function useCopilot() {
   const chatHistory = computed(() => activeSession.value?.messages || [])
 
   let chat: ChatLike | null = null
-  let transport: { api: string; body: () => unknown } | null = null
   let ChatCtor: typeof import('@ai-sdk/vue').Chat | null = null
   let DefaultChatTransport:
     | (new (opts: { api: string; body: () => unknown }) => { api: string; body: unknown })
@@ -108,6 +107,15 @@ export function useCopilot() {
 
   // 显式 effectScope —— sendMessage 是 async，watch 必须挂在显式 scope 上才能跨 await 生效
   const chatScope = effectScope()
+  const backupScope = effectScope(true)
+
+  // 组件卸载时清理 —— 停止轮询、释放 chat 同步 scope
+  // 注意：backupScope 是 detached（effectScope(true)），承载 sessions→localStorage 持久化 watch，
+  // 必须跨挂载存活 —— initialize() 因模块级 initialized 标志不会重跑，此处停止会导致 remount 后新增会话丢失持久化
+  onScopeDispose(() => {
+    stopPolling()
+    chatScope.stop()
+  })
 
   const syncFromChat = (instance: ChatLike) => {
     const session = activeSession.value
@@ -127,7 +135,7 @@ export function useCopilot() {
     const sdk = await loadSdk()
     ChatCtor = sdk.Chat
     DefaultChatTransport = sdk.DefaultChatTransport
-    transport = new DefaultChatTransport({
+    const transport = new DefaultChatTransport({
       api: '/api/insights/chat',
       body: () => ({ sessionId: activeSessionId.value || undefined })
     })
@@ -270,8 +278,7 @@ export function useCopilot() {
       await createNewSession()
     }
 
-    const scope = effectScope(true)
-    scope.run(() => {
+    backupScope.run(() => {
       watch(sessions, persistLocalBackup, { deep: true, immediate: true })
     })
   }
@@ -395,6 +402,7 @@ export function useCopilot() {
       try {
         await chat.stop()
         chat.messages = []
+        stopPolling()
       } catch {
         // 静默失败 —— 本地状态已重置
       }

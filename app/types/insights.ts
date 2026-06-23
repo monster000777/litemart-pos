@@ -14,6 +14,7 @@ export type InsightsAiSummaryDto = {
   generatedAt: string
   source?: 'remote' | 'fallback'
   failureCount?: number
+  failureMessage?: string | null
   weekStart: string
   weeklyOrderCount: number
   top3BySalesAmount: Array<{
