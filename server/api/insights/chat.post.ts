@@ -12,6 +12,7 @@ import {
 } from '~~/server/ai/prompts/bi-assistant'
 import { buildBiContext } from '~~/server/ai/prompts/bi-context'
 import { lookupOrderTool } from '~~/server/ai/tools/lookup-order'
+import { listOrdersByDateTool } from '~~/server/ai/tools/list-orders-by-date'
 
 const extractLastUserText = (messages: UIMessage[]): string => {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -88,7 +89,7 @@ export default defineEventHandler(async (event) => {
     const context = await buildBiContext(prisma)
     const system = buildBiAssistantSystemPrompt(context) + '\n\n' + getBiAssistantSystemRules()
     const lastUserText = extractLastUserText(messages)
-    const tools = { lookupOrder: lookupOrderTool }
+    const tools = { lookupOrder: lookupOrderTool, listOrdersByDate: listOrdersByDateTool }
 
     const result = streamText({
       model: provider.model,
